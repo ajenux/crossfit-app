@@ -19,4 +19,12 @@ public class AiController {
         String answer = aiService.explain(question);
         return Map.of("answer", answer);
     }
+
+    @PostMapping("/generate-workout")
+    public Map<String, String> generateWorkout(@RequestBody Map<String, String> body) {
+        String name = body.get("name");
+        String type = body.get("type");
+        String description = aiService.generateWorkoutDescription(name, type);
+        return Map.of("description", description);
+    }
 }

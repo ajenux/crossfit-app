@@ -1,5 +1,7 @@
 package com.example.demo.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
@@ -9,6 +11,8 @@ import java.util.Map;
 
 @Service
 public class ExerciseMediaService {
+
+    private static final Logger log = LoggerFactory.getLogger(ExerciseMediaService.class);
 
     private final RestClient restClient;
     private final String apiKey;
@@ -30,11 +34,13 @@ public class ExerciseMediaService {
                     .body(List.class);
 
             if (results != null && !results.isEmpty()) {
-                Object gifUrl = results.get(0).get("gifUrl");
-                return gifUrl != null ? gifUrl.toString() : null;
+                Object id = results.get(0).get("id");
+                if (id != null) {
+                    return "https://v2.exercisedb.io/image/" + id;
+                }
             }
         } catch (Exception e) {
-            // Media is optional — return null if API fails
+            log.error("ExerciseDB API error for '{}': {}", exerciseName, e.getMessage());
         }
         return null;
     }

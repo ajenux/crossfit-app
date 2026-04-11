@@ -21,6 +21,40 @@ public class AiService {
                 .build();
     }
 
+    public String generateWorkoutDescription(String name, String type) {
+        ChatRequest request = ChatRequest.builder()
+                .messages(List.of(
+                        SystemMessage.from("""
+                                You are a CrossFit coach assistant. Generate a concise workout description
+                                including exercises, sets/reps or time structure, and a brief coaching tip.
+                                Keep it under 100 words. Be practical and motivating.
+                                """),
+                        UserMessage.from("Generate a description for a CrossFit workout named '" + name + "' of type " + type + ".")
+                ))
+                .build();
+
+        ChatResponse response = model.chat(request);
+        return response.aiMessage().text();
+    }
+
+    public String explainExercise(String exerciseName) {
+        ChatRequest request = ChatRequest.builder()
+                .messages(List.of(
+                        SystemMessage.from("""
+                                You are a CrossFit coach assistant. Explain the given exercise clearly:
+                                - What muscles it targets
+                                - How to perform it step by step
+                                - Common mistakes to avoid
+                                Keep it under 120 words.
+                                """),
+                        UserMessage.from("Explain the exercise: " + exerciseName)
+                ))
+                .build();
+
+        ChatResponse response = model.chat(request);
+        return response.aiMessage().text();
+    }
+
     public String explain(String question) {
         ChatRequest request = ChatRequest.builder()
                 .messages(List.of(

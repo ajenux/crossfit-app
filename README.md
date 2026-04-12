@@ -165,3 +165,7 @@ src/main/java/com/example/demo/
 
 - `master` — stable releases only
 - `develop` — active development branch
+
+
+- email: test@crossfit.com
+- password: test123

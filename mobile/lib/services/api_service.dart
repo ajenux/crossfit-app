@@ -23,8 +23,13 @@ class ApiResult<T> {
 }
 
 class ApiService {
-  static const String baseUrl = 'http://10.0.2.2:8080/api'; // Android emulator
-  // Use 'http://localhost:8080/api' for iOS simulator
+  // API_URL is injected at build time via --dart-define=API_URL=https://...
+  // Defaults to Android emulator address for local development.
+  // For iOS simulator use: --dart-define=API_URL=http://localhost:8080/api
+  static const String baseUrl = String.fromEnvironment(
+    'API_URL',
+    defaultValue: 'http://10.0.2.2:8080/api',
+  );
 
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();

@@ -13,6 +13,7 @@ class AthleteDashboardScreen extends StatefulWidget {
 class _AthleteDashboardScreenState extends State<AthleteDashboardScreen> {
   Map<String, dynamic>? _data;
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -21,8 +22,17 @@ class _AthleteDashboardScreenState extends State<AthleteDashboardScreen> {
   }
 
   Future<void> _load() async {
-    final data = await ApiService.getAthleteDashboard(widget.athleteId);
-    setState(() { _data = data; _loading = false; });
+    setState(() { _loading = true; _error = null; });
+    final result = await ApiService.getAthleteDashboard(widget.athleteId);
+    if (!mounted) return;
+    if (result.isSuccess) {
+      setState(() { _data = result.data; _loading = false; });
+    } else if (result.isUnauthorized) {
+      await ApiService.clearToken();
+      if (mounted) context.go('/login');
+    } else {
+      setState(() { _loading = false; _error = result.errorMessage; });
+    }
   }
 
   @override
@@ -47,8 +57,8 @@ class _AthleteDashboardScreenState extends State<AthleteDashboardScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _data == null
-              ? const Center(child: Text('Failed to load dashboard'))
+          : _error != null
+              ? _ErrorView(message: _error!, onRetry: _load)
               : RefreshIndicator(
                   onRefresh: _load,
                   child: ListView(
@@ -65,29 +75,65 @@ class _AthleteDashboardScreenState extends State<AthleteDashboardScreen> {
                       const SizedBox(height: 16),
                       const Text('Coach Availability', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
-                      ...(_data!['coachAvailability'] as List).map((slot) => Card(
-                        child: ListTile(
-                          leading: const Icon(Icons.calendar_today),
-                          title: Text(slot['recurring']
-                              ? '${slot['dayOfWeek']} (weekly)'
-                              : slot['specificDate']),
-                          subtitle: Text('${slot['startTime']} – ${slot['endTime']}'),
-                        ),
-                      )),
+                      if ((_data!['coachAvailability'] as List).isEmpty)
+                        const Text('No availability slots yet.', style: TextStyle(color: Colors.grey))
+                      else
+                        ...(_data!['coachAvailability'] as List).map((slot) => Card(
+                          child: ListTile(
+                            leading: const Icon(Icons.calendar_today),
+                            title: Text(slot['recurring']
+                                ? '${slot['dayOfWeek']} (weekly)'
+                                : slot['specificDate']),
+                            subtitle: Text('${slot['startTime']} – ${slot['endTime']}'),
+                          ),
+                        )),
                       const SizedBox(height: 16),
                       const Text('Your Workouts', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
-                      ...(_data!['workouts'] as List).map((w) => Card(
-                        child: ListTile(
-                          leading: const Icon(Icons.sports),
-                          title: Text(w['name']),
-                          subtitle: Text('${w['type']} · ${w['scheduledDate']}'),
-                          trailing: const Icon(Icons.chevron_right),
-                        ),
-                      )),
+                      if ((_data!['workouts'] as List).isEmpty)
+                        const Text('No workouts assigned yet.', style: TextStyle(color: Colors.grey))
+                      else
+                        ...(_data!['workouts'] as List).map((w) => Card(
+                          child: ListTile(
+                            leading: const Icon(Icons.sports),
+                            title: Text(w['name']),
+                            subtitle: Text('${w['type']} · ${w['scheduledDate']}'),
+                            trailing: const Icon(Icons.chevron_right),
+                          ),
+                        )),
                     ],
                   ),
                 ),
+    );
+  }
+}
+
+class _ErrorView extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _ErrorView({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+            const SizedBox(height: 16),
+            Text(message, textAlign: TextAlign.center),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

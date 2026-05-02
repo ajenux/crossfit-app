@@ -13,6 +13,7 @@ class CoachDashboardScreen extends StatefulWidget {
 class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
   List<dynamic> _availability = [];
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -21,8 +22,17 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
   }
 
   Future<void> _load() async {
-    final data = await ApiService.getCoachAvailability(widget.coachId);
-    setState(() { _availability = data; _loading = false; });
+    setState(() { _loading = true; _error = null; });
+    final result = await ApiService.getCoachAvailability(widget.coachId);
+    if (!mounted) return;
+    if (result.isSuccess) {
+      setState(() { _availability = result.data ?? []; _loading = false; });
+    } else if (result.isUnauthorized) {
+      await ApiService.clearToken();
+      if (mounted) context.go('/login');
+    } else {
+      setState(() { _loading = false; _error = result.errorMessage; });
+    }
   }
 
   Future<void> _addSlot() async {
@@ -32,14 +42,34 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
     );
     if (result != null) {
       result['coachId'] = widget.coachId;
-      await ApiService.addAvailability(result);
-      _load();
+      final response = await ApiService.addAvailability(result);
+      if (!mounted) return;
+      if (response.isUnauthorized) {
+        await ApiService.clearToken();
+        context.go('/login');
+      } else if (!response.isSuccess) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(response.errorMessage), backgroundColor: Colors.red),
+        );
+      } else {
+        _load();
+      }
     }
   }
 
   Future<void> _deleteSlot(int id) async {
-    await ApiService.deleteAvailability(id);
-    _load();
+    final response = await ApiService.deleteAvailability(id);
+    if (!mounted) return;
+    if (response.isUnauthorized) {
+      await ApiService.clearToken();
+      context.go('/login');
+    } else if (!response.isSuccess) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(response.errorMessage), backgroundColor: Colors.red),
+      );
+    } else {
+      _load();
+    }
   }
 
   @override
@@ -63,6 +93,26 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                        const SizedBox(height: 16),
+                        Text(_error!, textAlign: TextAlign.center),
+                        const SizedBox(height: 24),
+                        ElevatedButton.icon(
+                          onPressed: _load,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
           : _availability.isEmpty
               ? const Center(child: Text('No availability slots yet. Tap + to add one.'))
               : RefreshIndicator(

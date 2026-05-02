@@ -5,10 +5,10 @@ import com.example.demo.dto.CoachResponse;
 import com.example.demo.model.Coach;
 import com.example.demo.repository.CoachRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 @Transactional
@@ -17,10 +17,8 @@ public class CoachService {
 
     private final CoachRepository coachRepository;
 
-    public List<CoachResponse> findAll() {
-        return coachRepository.findAll().stream()
-                .map(CoachResponse::new)
-                .toList();
+    public Page<CoachResponse> findAll(Pageable pageable) {
+        return coachRepository.findAll(pageable).map(CoachResponse::new);
     }
 
     public CoachResponse findById(Long id) {

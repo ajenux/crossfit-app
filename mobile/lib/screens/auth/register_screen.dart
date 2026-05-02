@@ -10,6 +10,7 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   String _role = 'ATHLETE';
@@ -18,14 +19,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _register() async {
     setState(() { _loading = true; _error = null; });
-    final token = await ApiService.register(
+    final result = await ApiService.register(
+      _nameController.text.trim(),
       _emailController.text.trim(),
       _passwordController.text.trim(),
       _role,
     );
     setState(() => _loading = false);
-    if (token != null && mounted) {
-      context.go(_role == 'COACH' ? '/coach/1' : '/athlete/1');
+    if (result != null && mounted) {
+      final role = result['role'] as String?;
+      final profileId = result['profileId'];
+      if (role == 'ATHLETE' && profileId != null) {
+        context.go('/athlete/$profileId');
+      } else if (role == 'COACH' && profileId != null) {
+        context.go('/coach/$profileId');
+      } else {
+        setState(() => _error = 'Profile not found. Contact your administrator.');
+      }
     } else {
       setState(() => _error = 'Registration failed');
     }
@@ -40,6 +50,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
           padding: const EdgeInsets.all(24),
           child: Column(
             children: [
+              TextField(
+                controller: _nameController,
+                decoration: const InputDecoration(labelText: 'Name', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 16),
               TextField(
                 controller: _emailController,
                 decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()),

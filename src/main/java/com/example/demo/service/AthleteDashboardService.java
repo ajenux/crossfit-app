@@ -7,7 +7,10 @@ import com.example.demo.model.Athlete;
 import com.example.demo.repository.AthleteRepository;
 import com.example.demo.repository.CoachAvailabilityRepository;
 import com.example.demo.repository.WorkoutRepository;
+import com.example.demo.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -21,10 +24,20 @@ public class AthleteDashboardService {
     private final CoachAvailabilityRepository availabilityRepository;
 
     public AthleteDashboardResponse getDashboard(Long athleteId) {
+        if (SecurityUtils.isAthlete()) {
+            String email = SecurityUtils.getCurrentUserEmail();
+            Long currentAthleteId = athleteRepository.findByEmail(email)
+                    .map(Athlete::getId)
+                    .orElseThrow(() -> new RuntimeException("Athlete profile not found"));
+            if (!athleteId.equals(currentAthleteId)) {
+                throw new AccessDeniedException("Access denied: you can only access your own dashboard");
+            }
+        }
+
         Athlete athlete = athleteRepository.findById(athleteId)
                 .orElseThrow(() -> new RuntimeException("Athlete not found"));
 
-        List<WorkoutResponse> workouts = workoutRepository.findByAthleteId(athleteId)
+        List<WorkoutResponse> workouts = workoutRepository.findByAthleteId(athleteId, Pageable.unpaged())
                 .stream().map(WorkoutResponse::new).toList();
 
         List<CoachAvailabilityResponse> availability = List.of();

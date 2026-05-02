@@ -17,13 +17,21 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _login() async {
     setState(() { _loading = true; _error = null; });
-    final token = await ApiService.login(
+    final result = await ApiService.login(
       _emailController.text.trim(),
       _passwordController.text.trim(),
     );
     setState(() => _loading = false);
-    if (token != null && mounted) {
-      context.go('/athlete/1'); // TODO: replace with actual athleteId from token
+    if (result != null && mounted) {
+      final role = result['role'] as String?;
+      final profileId = result['profileId'];
+      if (role == 'ATHLETE' && profileId != null) {
+        context.go('/athlete/$profileId');
+      } else if (role == 'COACH' && profileId != null) {
+        context.go('/coach/$profileId');
+      } else {
+        setState(() => _error = 'Profile not found. Contact your administrator.');
+      }
     } else {
       setState(() => _error = 'Invalid email or password');
     }

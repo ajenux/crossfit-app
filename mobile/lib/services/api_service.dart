@@ -16,9 +16,21 @@ class ApiService {
     await prefs.setString('token', token);
   }
 
+  static Future<String?> getRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('role');
+  }
+
+  static Future<int?> getProfileId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('profileId');
+  }
+
   static Future<void> clearToken() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
+    await prefs.remove('role');
+    await prefs.remove('profileId');
   }
 
   static Future<Map<String, String>> _authHeaders() async {
@@ -30,30 +42,40 @@ class ApiService {
   }
 
   // Auth
-  static Future<String?> login(String email, String password) async {
+  static Future<Map<String, dynamic>?> login(String email, String password) async {
     final res = await http.post(
       Uri.parse('$baseUrl/auth/login'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'email': email, 'password': password}),
     );
     if (res.statusCode == 200) {
-      final token = jsonDecode(res.body)['token'];
-      await saveToken(token);
-      return token;
+      final body = jsonDecode(res.body);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('token', body['token']);
+      await prefs.setString('role', body['role']);
+      if (body['profileId'] != null) {
+        await prefs.setInt('profileId', body['profileId']);
+      }
+      return body;
     }
     return null;
   }
 
-  static Future<String?> register(String email, String password, String role) async {
+  static Future<Map<String, dynamic>?> register(String name, String email, String password, String role) async {
     final res = await http.post(
       Uri.parse('$baseUrl/auth/register'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'email': email, 'password': password, 'role': role}),
+      body: jsonEncode({'name': name, 'email': email, 'password': password, 'role': role}),
     );
     if (res.statusCode == 200) {
-      final token = jsonDecode(res.body)['token'];
-      await saveToken(token);
-      return token;
+      final body = jsonDecode(res.body);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('token', body['token']);
+      await prefs.setString('role', body['role']);
+      if (body['profileId'] != null) {
+        await prefs.setInt('profileId', body['profileId']);
+      }
+      return body;
     }
     return null;
   }

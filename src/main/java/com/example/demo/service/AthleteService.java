@@ -7,10 +7,10 @@ import com.example.demo.model.Coach;
 import com.example.demo.repository.AthleteRepository;
 import com.example.demo.repository.CoachRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 @Transactional
@@ -20,16 +20,12 @@ public class AthleteService {
     private final AthleteRepository athleteRepository;
     private final CoachRepository coachRepository;
 
-    public List<AthleteResponse> findAll() {
-        return athleteRepository.findAll().stream()
-                .map(AthleteResponse::new)
-                .toList();
+    public Page<AthleteResponse> findAll(Pageable pageable) {
+        return athleteRepository.findAll(pageable).map(AthleteResponse::new);
     }
 
-    public List<AthleteResponse> findByCoach(Long coachId) {
-        return athleteRepository.findByCoachId(coachId).stream()
-                .map(AthleteResponse::new)
-                .toList();
+    public Page<AthleteResponse> findByCoach(Long coachId, Pageable pageable) {
+        return athleteRepository.findByCoachId(coachId, pageable).map(AthleteResponse::new);
     }
 
     public AthleteResponse findById(Long id) {

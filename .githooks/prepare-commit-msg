@@ -1,0 +1,42 @@
+#!/bin/bash
+#
+# prepare-commit-msg — auto-generates a commit message using Claude
+# Skips if a message was already provided (e.g. git commit -m "...")
+#
+
+COMMIT_MSG_FILE=$1
+COMMIT_SOURCE=$2  # "message", "template", "merge", "squash", "commit" — empty = normal commit
+
+# Only run for normal commits (no -m flag, not a merge/squash/amend)
+if [ -n "$COMMIT_SOURCE" ]; then
+  exit 0
+fi
+
+DIFF=$(git diff --cached)
+
+if [ -z "$DIFF" ]; then
+  exit 0
+fi
+
+echo "Generating commit message with Claude..." >&2
+
+MESSAGE=$(printf '%s' "$DIFF" | claude -p \
+  "You are a commit message generator. Analyze this git diff and write a concise, descriptive commit message.
+
+Rules:
+- First line: short subject (max 72 chars), imperative mood (e.g. \"Add\", \"Fix\", \"Update\")
+- Blank line
+- 2-4 bullet points explaining what changed and why
+- Technical, specific — mention class/method names when relevant
+- English only
+- Output ONLY the commit message, no explanation, no markdown fences
+
+Git diff:
+" 2>/dev/null)
+
+if [ -n "$MESSAGE" ]; then
+  echo "$MESSAGE" > "$COMMIT_MSG_FILE"
+  echo "Commit message generated. Edit it if needed, then save and close." >&2
+else
+  echo "Claude did not return a message — using default." >&2
+fi

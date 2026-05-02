@@ -26,9 +26,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _role,
     );
     setState(() => _loading = false);
-    if (result != null && mounted) {
-      final role = result['role'] as String?;
-      final profileId = result['profileId'];
+    if (!mounted) return;
+    if (result.isSuccess && result.data != null) {
+      final role = result.data!['role'] as String?;
+      final profileId = result.data!['profileId'];
       if (role == 'ATHLETE' && profileId != null) {
         context.go('/athlete/$profileId');
       } else if (role == 'COACH' && profileId != null) {
@@ -36,8 +37,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       } else {
         setState(() => _error = 'Profile not found. Contact your administrator.');
       }
+    } else if (result.isNetworkError) {
+      setState(() => _error = result.errorMessage);
     } else {
-      setState(() => _error = 'Registration failed');
+      setState(() => _error = 'Registration failed. Please try again.');
     }
   }
 

@@ -20,12 +20,13 @@ class _ExerciseAssistantScreenState extends State<ExerciseAssistantScreen> {
     if (exercise.isEmpty) return;
     setState(() { _loading = true; _error = null; _result = null; });
     final result = await ApiService.explainExercise(exercise);
+    if (!mounted) return;
     setState(() {
       _loading = false;
-      if (result != null) {
-        _result = result;
+      if (result.isSuccess) {
+        _result = result.data;
       } else {
-        _error = 'Could not get an answer. Try again.';
+        _error = result.errorMessage;
       }
     });
   }

@@ -6,6 +6,9 @@ import 'screens/athlete/athlete_dashboard_screen.dart';
 import 'screens/athlete/exercise_assistant_screen.dart';
 import 'screens/coach/coach_dashboard_screen.dart';
 
+// Injected at build time: flutter build web --dart-define=DEMO_MODE=true
+const bool kDemoMode = bool.fromEnvironment('DEMO_MODE', defaultValue: false);
+
 void main() => runApp(const CrossFitApp());
 
 final _router = GoRouter(
@@ -42,6 +45,45 @@ class CrossFitApp extends StatelessWidget {
         useMaterial3: true,
       ),
       routerConfig: _router,
+      builder: kDemoMode
+          ? (context, child) => _DemoBanner(child: child!)
+          : null,
+    );
+  }
+}
+
+/// Shown on all screens when the app is running in demo mode.
+/// Reminds stakeholders that data is not real.
+class _DemoBanner extends StatelessWidget {
+  final Widget child;
+  const _DemoBanner({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Material(
+          color: Colors.deepOrange,
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(Icons.science_outlined, color: Colors.white, size: 14),
+                  SizedBox(width: 6),
+                  Text(
+                    'Demo environment — data is not real',
+                    style: TextStyle(color: Colors.white, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Expanded(child: child),
+      ],
     );
   }
 }

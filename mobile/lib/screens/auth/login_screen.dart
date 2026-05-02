@@ -22,9 +22,10 @@ class _LoginScreenState extends State<LoginScreen> {
       _passwordController.text.trim(),
     );
     setState(() => _loading = false);
-    if (result != null && mounted) {
-      final role = result['role'] as String?;
-      final profileId = result['profileId'];
+    if (!mounted) return;
+    if (result.isSuccess && result.data != null) {
+      final role = result.data!['role'] as String?;
+      final profileId = result.data!['profileId'];
       if (role == 'ATHLETE' && profileId != null) {
         context.go('/athlete/$profileId');
       } else if (role == 'COACH' && profileId != null) {
@@ -32,8 +33,10 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         setState(() => _error = 'Profile not found. Contact your administrator.');
       }
+    } else if (result.isNetworkError) {
+      setState(() => _error = result.errorMessage);
     } else {
-      setState(() => _error = 'Invalid email or password');
+      setState(() => _error = 'Invalid email or password.');
     }
   }
 

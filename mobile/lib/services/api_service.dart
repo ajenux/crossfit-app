@@ -1,19 +1,39 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+class ApiResult<T> {
+  final T? data;
+  final int statusCode;
+
+  const ApiResult({this.data, required this.statusCode});
+
+  bool get isSuccess => statusCode >= 200 && statusCode < 300;
+  bool get isUnauthorized => statusCode == 401;
+  bool get isForbidden => statusCode == 403;
+  bool get isNetworkError => statusCode == 0;
+
+  String get errorMessage {
+    if (isNetworkError) return 'Connection error. Make sure the server is running.';
+    if (isUnauthorized) return 'Session expired. Please log in again.';
+    if (isForbidden) return 'You don\'t have permission to access this.';
+    return 'Something went wrong (error $statusCode). Please try again.';
+  }
+}
+
 class ApiService {
-  static const String baseUrl = 'http://10.0.2.2:8080/api'; // Android emulator
-  // Use 'http://localhost:8080/api' for iOS simulator
+  // API_URL is injected at build time via --dart-define=API_URL=https://...
+  // Defaults to Android emulator address for local development.
+  // For iOS simulator use: --dart-define=API_URL=http://localhost:8080/api
+  static const String baseUrl = String.fromEnvironment(
+    'API_URL',
+    defaultValue: 'http://10.0.2.2:8080/api',
+  );
 
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('token');
-  }
-
-  static Future<void> saveToken(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('token', token);
   }
 
   static Future<String?> getRole() async {
@@ -42,89 +62,186 @@ class ApiService {
   }
 
   // Auth
-  static Future<Map<String, dynamic>?> login(String email, String password) async {
-    final res = await http.post(
-      Uri.parse('$baseUrl/auth/login'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'email': email, 'password': password}),
-    );
-    if (res.statusCode == 200) {
-      final body = jsonDecode(res.body);
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('token', body['token']);
-      await prefs.setString('role', body['role']);
-      if (body['profileId'] != null) {
-        await prefs.setInt('profileId', body['profileId']);
+  static Future<ApiResult<Map<String, dynamic>>> login(String email, String password) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/auth/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'password': password}),
+      );
+      if (res.statusCode == 200) {
+        final body = jsonDecode(res.body) as Map<String, dynamic>;
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('token', body['token']);
+        await prefs.setString('role', body['role']);
+        if (body['profileId'] != null) {
+          await prefs.setInt('profileId', body['profileId']);
+        }
+        return ApiResult(data: body, statusCode: 200);
       }
-      return body;
+      return ApiResult(statusCode: res.statusCode);
+    } on SocketException {
+      return const ApiResult(statusCode: 0);
     }
-    return null;
   }
 
-  static Future<Map<String, dynamic>?> register(String name, String email, String password, String role) async {
-    final res = await http.post(
-      Uri.parse('$baseUrl/auth/register'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'name': name, 'email': email, 'password': password, 'role': role}),
-    );
-    if (res.statusCode == 200) {
-      final body = jsonDecode(res.body);
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('token', body['token']);
-      await prefs.setString('role', body['role']);
-      if (body['profileId'] != null) {
-        await prefs.setInt('profileId', body['profileId']);
+  static Future<ApiResult<Map<String, dynamic>>> register(
+      String name, String email, String password, String role) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/auth/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'name': name, 'email': email, 'password': password, 'role': role}),
+      );
+      if (res.statusCode == 200) {
+        final body = jsonDecode(res.body) as Map<String, dynamic>;
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('token', body['token']);
+        await prefs.setString('role', body['role']);
+        if (body['profileId'] != null) {
+          await prefs.setInt('profileId', body['profileId']);
+        }
+        return ApiResult(data: body, statusCode: 200);
       }
-      return body;
+      return ApiResult(statusCode: res.statusCode);
+    } on SocketException {
+      return const ApiResult(statusCode: 0);
     }
-    return null;
   }
 
   // Athlete dashboard
-  static Future<Map<String, dynamic>?> getAthleteDashboard(int athleteId) async {
-    final res = await http.get(
-      Uri.parse('$baseUrl/dashboard/athlete/$athleteId'),
-      headers: await _authHeaders(),
-    );
-    if (res.statusCode == 200) return jsonDecode(res.body);
-    return null;
+  static Future<ApiResult<Map<String, dynamic>>> getAthleteDashboard(int athleteId) async {
+    try {
+      final res = await http.get(
+        Uri.parse('$baseUrl/dashboard/athlete/$athleteId'),
+        headers: await _authHeaders(),
+      );
+      if (res.statusCode == 200) {
+        return ApiResult(data: jsonDecode(res.body) as Map<String, dynamic>, statusCode: 200);
+      }
+      return ApiResult(statusCode: res.statusCode);
+    } on SocketException {
+      return const ApiResult(statusCode: 0);
+    }
   }
 
   // Coach availability
-  static Future<List<dynamic>> getCoachAvailability(int coachId) async {
-    final res = await http.get(
-      Uri.parse('$baseUrl/availability/coach/$coachId'),
-      headers: await _authHeaders(),
-    );
-    if (res.statusCode == 200) return jsonDecode(res.body);
-    return [];
+  static Future<ApiResult<List<dynamic>>> getCoachAvailability(int coachId) async {
+    try {
+      final res = await http.get(
+        Uri.parse('$baseUrl/availability/coach/$coachId'),
+        headers: await _authHeaders(),
+      );
+      if (res.statusCode == 200) {
+        return ApiResult(data: jsonDecode(res.body) as List<dynamic>, statusCode: 200);
+      }
+      return ApiResult(statusCode: res.statusCode);
+    } on SocketException {
+      return const ApiResult(statusCode: 0);
+    }
   }
 
-  static Future<bool> addAvailability(Map<String, dynamic> data) async {
-    final res = await http.post(
-      Uri.parse('$baseUrl/availability'),
-      headers: await _authHeaders(),
-      body: jsonEncode(data),
-    );
-    return res.statusCode == 201;
+  static Future<ApiResult<bool>> addAvailability(Map<String, dynamic> data) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/availability'),
+        headers: await _authHeaders(),
+        body: jsonEncode(data),
+      );
+      return ApiResult(data: res.statusCode == 201, statusCode: res.statusCode);
+    } on SocketException {
+      return const ApiResult(statusCode: 0);
+    }
   }
 
-  static Future<bool> deleteAvailability(int id) async {
-    final res = await http.delete(
-      Uri.parse('$baseUrl/availability/$id'),
-      headers: await _authHeaders(),
-    );
-    return res.statusCode == 204;
+  static Future<ApiResult<bool>> deleteAvailability(int id) async {
+    try {
+      final res = await http.delete(
+        Uri.parse('$baseUrl/availability/$id'),
+        headers: await _authHeaders(),
+      );
+      return ApiResult(data: res.statusCode == 204, statusCode: res.statusCode);
+    } on SocketException {
+      return const ApiResult(statusCode: 0);
+    }
+  }
+
+  // Athletes
+  static Future<ApiResult<List<dynamic>>> getAthletesByCoach(int coachId) async {
+    try {
+      final res = await http.get(
+        Uri.parse('$baseUrl/athletes?coachId=$coachId&size=100'),
+        headers: await _authHeaders(),
+      );
+      if (res.statusCode == 200) {
+        final body = jsonDecode(res.body) as Map<String, dynamic>;
+        return ApiResult(data: body['content'] as List<dynamic>, statusCode: 200);
+      }
+      return ApiResult(statusCode: res.statusCode);
+    } on SocketException {
+      return const ApiResult(statusCode: 0);
+    }
+  }
+
+  // Workouts
+  static Future<ApiResult<List<dynamic>>> getWorkoutsByCoach(int coachId) async {
+    try {
+      final res = await http.get(
+        Uri.parse('$baseUrl/workouts?coachId=$coachId&size=100'),
+        headers: await _authHeaders(),
+      );
+      if (res.statusCode == 200) {
+        final body = jsonDecode(res.body) as Map<String, dynamic>;
+        return ApiResult(data: body['content'] as List<dynamic>, statusCode: 200);
+      }
+      return ApiResult(statusCode: res.statusCode);
+    } on SocketException {
+      return const ApiResult(statusCode: 0);
+    }
+  }
+
+  static Future<ApiResult<Map<String, dynamic>>> createWorkout(Map<String, dynamic> data) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/workouts'),
+        headers: await _authHeaders(),
+        body: jsonEncode(data),
+      );
+      if (res.statusCode == 201) {
+        return ApiResult(data: jsonDecode(res.body) as Map<String, dynamic>, statusCode: 201);
+      }
+      return ApiResult(statusCode: res.statusCode);
+    } on SocketException {
+      return const ApiResult(statusCode: 0);
+    }
+  }
+
+  static Future<ApiResult<bool>> deleteWorkout(int id) async {
+    try {
+      final res = await http.delete(
+        Uri.parse('$baseUrl/workouts/$id'),
+        headers: await _authHeaders(),
+      );
+      return ApiResult(data: res.statusCode == 204, statusCode: res.statusCode);
+    } on SocketException {
+      return const ApiResult(statusCode: 0);
+    }
   }
 
   // AI exercise assistant
-  static Future<Map<String, dynamic>?> explainExercise(String exercise) async {
-    final res = await http.post(
-      Uri.parse('$baseUrl/ai/exercise'),
-      headers: await _authHeaders(),
-      body: jsonEncode({'exercise': exercise}),
-    );
-    if (res.statusCode == 200) return jsonDecode(res.body);
-    return null;
+  static Future<ApiResult<Map<String, dynamic>>> explainExercise(String exercise) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/ai/exercise'),
+        headers: await _authHeaders(),
+        body: jsonEncode({'exercise': exercise}),
+      );
+      if (res.statusCode == 200) {
+        return ApiResult(data: jsonDecode(res.body) as Map<String, dynamic>, statusCode: 200);
+      }
+      return ApiResult(statusCode: res.statusCode);
+    } on SocketException {
+      return const ApiResult(statusCode: 0);
+    }
   }
 }

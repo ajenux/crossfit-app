@@ -23,6 +23,10 @@ public class Coach {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", unique = true)
+    private User user;
+
     @OneToMany(mappedBy = "coach", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Athlete> athletes = new ArrayList<>();
 }

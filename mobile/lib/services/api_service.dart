@@ -161,6 +161,68 @@ class ApiService {
     }
   }
 
+  // Athletes
+  static Future<ApiResult<List<dynamic>>> getAthletesByCoach(int coachId) async {
+    try {
+      final res = await http.get(
+        Uri.parse('$baseUrl/athletes?coachId=$coachId&size=100'),
+        headers: await _authHeaders(),
+      );
+      if (res.statusCode == 200) {
+        final body = jsonDecode(res.body) as Map<String, dynamic>;
+        return ApiResult(data: body['content'] as List<dynamic>, statusCode: 200);
+      }
+      return ApiResult(statusCode: res.statusCode);
+    } on SocketException {
+      return const ApiResult(statusCode: 0);
+    }
+  }
+
+  // Workouts
+  static Future<ApiResult<List<dynamic>>> getWorkoutsByCoach(int coachId) async {
+    try {
+      final res = await http.get(
+        Uri.parse('$baseUrl/workouts?coachId=$coachId&size=100'),
+        headers: await _authHeaders(),
+      );
+      if (res.statusCode == 200) {
+        final body = jsonDecode(res.body) as Map<String, dynamic>;
+        return ApiResult(data: body['content'] as List<dynamic>, statusCode: 200);
+      }
+      return ApiResult(statusCode: res.statusCode);
+    } on SocketException {
+      return const ApiResult(statusCode: 0);
+    }
+  }
+
+  static Future<ApiResult<Map<String, dynamic>>> createWorkout(Map<String, dynamic> data) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/workouts'),
+        headers: await _authHeaders(),
+        body: jsonEncode(data),
+      );
+      if (res.statusCode == 201) {
+        return ApiResult(data: jsonDecode(res.body) as Map<String, dynamic>, statusCode: 201);
+      }
+      return ApiResult(statusCode: res.statusCode);
+    } on SocketException {
+      return const ApiResult(statusCode: 0);
+    }
+  }
+
+  static Future<ApiResult<bool>> deleteWorkout(int id) async {
+    try {
+      final res = await http.delete(
+        Uri.parse('$baseUrl/workouts/$id'),
+        headers: await _authHeaders(),
+      );
+      return ApiResult(data: res.statusCode == 204, statusCode: res.statusCode);
+    } on SocketException {
+      return const ApiResult(statusCode: 0);
+    }
+  }
+
   // AI exercise assistant
   static Future<ApiResult<Map<String, dynamic>>> explainExercise(String exercise) async {
     try {

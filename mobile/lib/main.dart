@@ -13,6 +13,22 @@ void main() => runApp(const CrossFitApp());
 
 final _router = GoRouter(
   initialLocation: '/login',
+  redirect: (context, state) async {
+    final token = await ApiService.getToken();
+    final role = await ApiService.getRole();
+    final profileId = await ApiService.getProfileId();
+
+    final isLoggedIn = token != null && profileId != null;
+    final isAuthRoute = state.matchedLocation == '/login' ||
+        state.matchedLocation == '/register';
+
+    if (!isLoggedIn && !isAuthRoute) return '/login';
+    if (isLoggedIn && isAuthRoute) {
+      if (role == 'ATHLETE') return '/athlete/$profileId';
+      if (role == 'COACH') return '/coach/$profileId';
+    }
+    return null;
+  },
   routes: [
     GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
     GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),

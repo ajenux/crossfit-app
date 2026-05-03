@@ -90,23 +90,79 @@ class _AthletesTabState extends State<_AthletesTab> {
     if (_athletes.isEmpty) {
       return const Center(child: Text('No athletes assigned yet.', style: TextStyle(color: Colors.grey)));
     }
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _athletes.length,
-        itemBuilder: (_, i) {
-          final a = _athletes[i];
-          return Card(
-            child: ListTile(
-              leading: const CircleAvatar(child: Icon(Icons.person)),
-              title: Text(a['name']),
-              subtitle: Text(a['email']),
-            ),
-          );
-        },
+    return Scaffold(
+      body: RefreshIndicator(
+        onRefresh: _load,
+        child: ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: _athletes.length,
+          itemBuilder: (_, i) {
+            final a = _athletes[i];
+            return Card(
+              child: ListTile(
+                leading: const CircleAvatar(child: Icon(Icons.person)),
+                title: Text(a['name']),
+                subtitle: Text(a['email']),
+              ),
+            );
+          },
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _assignAthlete,
+        child: const Icon(Icons.person_add),
       ),
     );
+  }
+
+  Future<void> _assignAthlete() async {
+    final allResult = await ApiService.getAllAthletes();
+    if (!mounted) return;
+    if (allResult.isUnauthorized) {
+      await ApiService.clearToken();
+      if (mounted) context.go('/login');
+      return;
+    }
+    if (!allResult.isSuccess) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(allResult.errorMessage), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    final myIds = _athletes.map((a) => a['id']).toSet();
+    final unassigned = (allResult.data ?? []).where((a) => !myIds.contains(a['id'])).toList();
+
+    if (unassigned.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No unassigned athletes available.')),
+      );
+      return;
+    }
+
+    final selected = await showDialog<dynamic>(
+      context: context,
+      builder: (_) => _AssignAthleteDialog(athletes: unassigned),
+    );
+    if (selected == null) return;
+
+    final response = await ApiService.assignAthleteToCoach(
+      selected['id'],
+      selected['name'],
+      selected['email'],
+      widget.coachId,
+    );
+    if (!mounted) return;
+    if (response.isUnauthorized) {
+      await ApiService.clearToken();
+      context.go('/login');
+    } else if (!response.isSuccess) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(response.errorMessage), backgroundColor: Colors.red),
+      );
+    } else {
+      _load();
+    }
   }
 }
 
@@ -532,6 +588,48 @@ class _AddAvailabilityDialogState extends State<_AddAvailabilityDialog> {
             'endTime': _formatTime(_end),
           }),
           child: const Text('Save'),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Assign Athlete Dialog ───────────────────────────────────────────────────
+
+class _AssignAthleteDialog extends StatefulWidget {
+  final List<dynamic> athletes;
+  const _AssignAthleteDialog({required this.athletes});
+
+  @override
+  State<_AssignAthleteDialog> createState() => _AssignAthleteDialogState();
+}
+
+class _AssignAthleteDialogState extends State<_AssignAthleteDialog> {
+  late dynamic _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = widget.athletes.first;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Assign Athlete'),
+      content: DropdownButtonFormField<dynamic>(
+        value: _selected,
+        decoration: const InputDecoration(labelText: 'Athlete', border: OutlineInputBorder()),
+        items: widget.athletes
+            .map((a) => DropdownMenuItem(value: a, child: Text('${a['name']} (${a['email']})')))
+            .toList(),
+        onChanged: (v) => setState(() => _selected = v),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, _selected),
+          child: const Text('Assign'),
         ),
       ],
     );

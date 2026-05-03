@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../services/api_service.dart';
 
 class ExerciseAssistantScreen extends StatefulWidget {
@@ -21,6 +22,11 @@ class _ExerciseAssistantScreenState extends State<ExerciseAssistantScreen> {
     setState(() { _loading = true; _error = null; _result = null; });
     final result = await ApiService.explainExercise(exercise);
     if (!mounted) return;
+    if (result.isUnauthorized) {
+      await ApiService.clearToken();
+      if (mounted) context.go('/login');
+      return;
+    }
     setState(() {
       _loading = false;
       if (result.isSuccess) {

@@ -96,11 +96,10 @@ class _AthletesTabState extends State<_AthletesTab> {
         },
       );
     }
-    if (_athletes.isEmpty) {
-      return const Center(child: Text('No athletes assigned yet.', style: TextStyle(color: Colors.grey)));
-    }
     return Scaffold(
-      body: RefreshIndicator(
+      body: _athletes.isEmpty
+          ? const Center(child: Text('No athletes assigned yet. Tap + to assign one.', style: TextStyle(color: Colors.grey)))
+          : RefreshIndicator(
         onRefresh: _load,
         child: ListView.builder(
           padding: const EdgeInsets.all(16),

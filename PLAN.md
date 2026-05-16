@@ -59,6 +59,7 @@ Updated whenever a phase is completed or started.
 - [x] `CLAUDE.md` added with project instructions for Claude
 - [x] Pre-push hook runs `update-plan.sh` to keep `PLAN.md` current before every push
 - [x] Fix `update-plan.sh` to strip Claude explanation text from output
+- [x] **Flutter: _ErrorView logout button** — added Logout option to error screens so users are not stuck in a retry loop on 403 errors
 
 ---
 
@@ -66,7 +67,6 @@ Updated whenever a phase is completed or started.
 
 ### High priority
 - [ ] **Merge PR** `develop → master` — live testing confirmed everything works (user merging from GitHub UI)
-- [ ] **Flutter: _ErrorView logout button** — when a 403 appears on a data-load screen, the Retry button loops forever; needs a "Logout" option
 
 ### Medium priority
 - [ ] **Flutter: pagination** — backend paginates but Flutter loads everything with no infinite scroll

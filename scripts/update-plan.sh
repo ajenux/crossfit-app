@@ -48,7 +48,16 @@ if [ -z "$UPDATED" ]; then
   exit 1
 fi
 
-echo "$UPDATED" > "$PLAN_FILE"
+# Strip any markdown code fences and explanation text Claude may have added.
+# Keep only the lines from the first "# " heading onwards.
+CLEANED=$(echo "$UPDATED" | awk '/^# /{found=1} found && !/^```/{print}')
+
+if [ -z "$CLEANED" ]; then
+  echo "Could not extract clean content — PLAN.md was not modified."
+  exit 1
+fi
+
+echo "$CLEANED" > "$PLAN_FILE"
 echo "PLAN.md updated successfully."
 echo ""
 echo "Review the changes:"

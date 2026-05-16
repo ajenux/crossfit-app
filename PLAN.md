@@ -1,8 +1,3 @@
-Looking at the commits, the current PLAN.md (updated by `0298cad`) missed marking the **Deploy** item done — commits `eb82aee` (Flutter web deployment pipeline + demo environment) and `2f9fe6a` (Railway deploy config) clearly addressed it. Everything else in the PLAN.md already reflects the commit history accurately.
-
-Here is the updated PLAN.md:
-
-```markdown
 # Project Plan — CrossFit App
 
 Tracks what has been done, where we are, and what's next.
@@ -48,12 +43,16 @@ Updated whenever a phase is completed or started.
 - [x] Athlete dashboard: own workouts + assigned coach availability in one response
 - [x] AI exercise assistant (`POST /api/ai/exercise`) via Ollama + ExerciseDB
 - [x] Workout description generator (`POST /api/ai/generate-workout`) via Ollama
+- [x] Flutter coach dashboard — Athletes tab (list + assign), Workouts tab (create + delete), Availability tab (add + delete)
+- [x] Assign coach to athlete from UI — FloatingActionButton in Athletes tab
+- [x] Deploy — Railway backend + Flutter web pipeline with demo environment
 
 ### Quality
 - [x] 16 automated tests (4 service unit tests + 12 controller integration tests)
 - [x] Fix `LazyInitializationException` in `AthleteDashboardService` (`@Transactional(readOnly=true)`)
 - [x] README cleaned (no hardcoded credentials)
 - [x] Duplicate Flutter folder (`crossfit_flutter/`) removed
+- [x] Fix missing `ApiService` import in `mobile/lib/main.dart`
 
 ---
 
@@ -61,12 +60,9 @@ Updated whenever a phase is completed or started.
 
 ### High priority
 - [ ] **Merge PR** `develop → master` — live testing confirmed everything works (user merging from GitHub UI)
-- [x] **Flutter: coach screens** — implemented in commit 2f9fe6a: Athletes tab (list + assign), Workouts tab (create + delete), Availability tab (add + delete)
-- [x] **Flutter: error handling in UI** — 401 redirects to login, 403/other show SnackBar or _ErrorView with retry. Fixed missing ApiService import in main.dart (2026-05-15)
 - [ ] **Flutter: _ErrorView logout button** — when a 403 appears on a data-load screen, the Retry button loops forever; needs a "Logout" option
 
 ### Medium priority
-- [x] **Assign coach to athlete** — implemented in commit 2f9fe6a: FloatingActionButton in Athletes tab shows unassigned athletes dialog
 - [ ] **Flutter: pagination** — backend paginates but Flutter loads everything with no infinite scroll
 - [ ] **Input validation** — no `@Valid` / `@NotNull` on incoming DTOs
 - [ ] **Flutter tests** — only backend is tested
@@ -76,7 +72,6 @@ Updated whenever a phase is completed or started.
 - [ ] **Athlete progress** — history of completed vs pending workouts
 - [ ] **Better AI** — more capable models or surface AI results directly in the dashboard
 - [ ] **Refresh token** — JWT expires with no renewal mechanism, requires re-login
-- [x] **Deploy** — Railway deploy config added (commit 2f9fe6a) + Flutter web deployment pipeline and demo environment support (commit eb82aee)
 
 ---
 
@@ -90,6 +85,3 @@ Updated whenever a phase is completed or started.
 | `SecurityMockMvcRequestPostProcessors.user()` in tests | `@WithMockUser` does not work with Spring Boot 4's new `@AutoConfigureMockMvc` |
 | Environment variables for credentials | `.env` + `.env.example` pattern, `.env` in `.gitignore` |
 | Railway for backend deployment | Chosen for zero-config PostgreSQL add-on and simple Spring Boot deploy via `railway.toml` |
-```
-
-The only substantive change is marking **Deploy** as `[x]` and adding a Railway row to the decisions table, since commits `eb82aee` and `2f9fe6a` clearly addressed that pending item but `0298cad` left it unchecked.

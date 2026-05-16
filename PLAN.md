@@ -45,7 +45,7 @@ Updated whenever a phase is completed or started.
 - [x] Workout description generator (`POST /api/ai/generate-workout`) via Ollama
 - [x] Flutter coach dashboard — Athletes tab (list + assign), Workouts tab (create + delete), Availability tab (add + delete)
 - [x] Assign coach to athlete from UI — FloatingActionButton in Athletes tab
-- [x] Deploy — Railway backend + Flutter web pipeline with demo environment
+- [x] Deploy — Railway backend + Flutter web pipeline via GitHub Pages with demo environment
 
 ### Quality
 - [x] 16 automated tests (4 service unit tests + 12 controller integration tests)
@@ -91,3 +91,4 @@ Updated whenever a phase is completed or started.
 | `SecurityMockMvcRequestPostProcessors.user()` in tests | `@WithMockUser` does not work with Spring Boot 4's new `@AutoConfigureMockMvc` |
 | Environment variables for credentials | `.env` + `.env.example` pattern, `.env` in `.gitignore` |
 | Railway for backend deployment | Chosen for zero-config PostgreSQL add-on and simple Spring Boot deploy via `railway.toml` |
+| GitHub Pages for Flutter web | Switched from Netlify to GitHub Pages for simpler CI/CD integration via GitHub Actions |

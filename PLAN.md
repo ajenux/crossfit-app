@@ -66,6 +66,10 @@ Updated whenever a phase is completed or started.
 
 ## Pending / Next steps
 
+### CRITICAL — Security (fix before going public)
+- [ ] **[CRITICAL] CORS cerrado** — actualmente `allowedOrigins("*")` con `allowCredentials=true`. Restringir a `https://ajenux.github.io` en producción. Cualquier sitio puede hacer requests a la API.
+- [ ] **[CRITICAL] Rate limiting en login** — sin límite de intentos, el endpoint `/api/auth/login` es vulnerable a fuerza bruta. Agregar Bucket4j o similar.
+
 ### High priority
 - [ ] **Merge PR** `develop → master` — live testing confirmed everything works (user merging from GitHub UI)
 

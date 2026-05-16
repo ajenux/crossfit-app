@@ -60,6 +60,7 @@ Updated whenever a phase is completed or started.
 - [x] Pre-push hook runs `update-plan.sh` to keep `PLAN.md` current before every push
 - [x] Fix `update-plan.sh` to strip Claude explanation text from output
 - [x] **Flutter: _ErrorView logout button** — added Logout option to error screens so users are not stuck in a retry loop on 403 errors
+- [x] **Flutter: Athletes tab FAB fix** — FAB now visible even when the athlete list is empty, so coaches can assign athletes without needing existing entries
 
 ---
 

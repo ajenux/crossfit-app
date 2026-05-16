@@ -1,14 +1,21 @@
-name: Deploy Flutter Web to Netlify
+name: Deploy Flutter Web to GitHub Pages
 
-# Triggers on every push to master (after PR is merged)
 on:
   push:
     branches: [master]
-  workflow_dispatch:  # allows manual trigger from GitHub UI
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
 
     steps:
       - name: Checkout code
@@ -18,7 +25,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          cache: true  # caches Flutter SDK between runs
+          cache: true
 
       - name: Install dependencies
         working-directory: mobile
@@ -28,13 +35,15 @@ jobs:
         working-directory: mobile
         run: |
           flutter build web --release \
+            --base-href=/crossfit-app/ \
             --dart-define=API_URL=${{ vars.API_URL }} \
-            --dart-define=DEMO_MODE=true
+            --dart-define=DEMO_MODE=false
 
-      - name: Deploy to Netlify
-        uses: netlify/actions/cli@master
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          args: deploy --prod --dir=mobile/build/web
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          path: mobile/build/web
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

@@ -58,7 +58,14 @@ class _AthleteDashboardScreenState extends State<AthleteDashboardScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? _ErrorView(message: _error!, onRetry: _load)
+              ? _ErrorView(
+                  message: _error!,
+                  onRetry: _load,
+                  onLogout: () async {
+                    await ApiService.clearToken();
+                    if (mounted) context.go('/login');
+                  },
+                )
               : RefreshIndicator(
                   onRefresh: _load,
                   child: ListView(
@@ -111,8 +118,9 @@ class _AthleteDashboardScreenState extends State<AthleteDashboardScreen> {
 class _ErrorView extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
+  final VoidCallback? onLogout;
 
-  const _ErrorView({required this.message, required this.onRetry});
+  const _ErrorView({required this.message, required this.onRetry, this.onLogout});
 
   @override
   Widget build(BuildContext context) {
@@ -131,6 +139,14 @@ class _ErrorView extends StatelessWidget {
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
             ),
+            if (onLogout != null) ...[
+              const SizedBox(height: 8),
+              TextButton.icon(
+                onPressed: onLogout,
+                icon: const Icon(Icons.logout),
+                label: const Text('Logout'),
+              ),
+            ],
           ],
         ),
       ),

@@ -58,6 +58,7 @@ Updated whenever a phase is completed or started.
 - [x] AI-assisted commit message hook (`prepare-commit-msg`) via Ollama
 - [x] `CLAUDE.md` added with project instructions for Claude
 - [x] Pre-push hook runs `update-plan.sh` to keep `PLAN.md` current before every push
+- [x] Fix `update-plan.sh` to strip Claude explanation text from output
 
 ---
 

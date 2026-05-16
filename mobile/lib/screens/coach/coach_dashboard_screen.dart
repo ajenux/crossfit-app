@@ -86,7 +86,16 @@ class _AthletesTabState extends State<_AthletesTab> {
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_error != null) return _ErrorView(message: _error!, onRetry: _load);
+    if (_error != null) {
+      return _ErrorView(
+        message: _error!,
+        onRetry: _load,
+        onLogout: () async {
+          await ApiService.clearToken();
+          if (context.mounted) context.go('/login');
+        },
+      );
+    }
     if (_athletes.isEmpty) {
       return const Center(child: Text('No athletes assigned yet.', style: TextStyle(color: Colors.grey)));
     }
@@ -273,7 +282,16 @@ class _WorkoutsTabState extends State<_WorkoutsTab> {
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_error != null) return _ErrorView(message: _error!, onRetry: _load);
+    if (_error != null) {
+      return _ErrorView(
+        message: _error!,
+        onRetry: _load,
+        onLogout: () async {
+          await ApiService.clearToken();
+          if (context.mounted) context.go('/login');
+        },
+      );
+    }
     return Scaffold(
       body: _workouts.isEmpty
           ? const Center(child: Text('No workouts yet. Tap + to create one.', style: TextStyle(color: Colors.grey)))
@@ -382,7 +400,16 @@ class _AvailabilityTabState extends State<_AvailabilityTab> {
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_error != null) return _ErrorView(message: _error!, onRetry: _load);
+    if (_error != null) {
+      return _ErrorView(
+        message: _error!,
+        onRetry: _load,
+        onLogout: () async {
+          await ApiService.clearToken();
+          if (context.mounted) context.go('/login');
+        },
+      );
+    }
     return Scaffold(
       body: _availability.isEmpty
           ? const Center(child: Text('No availability slots yet. Tap + to add one.', style: TextStyle(color: Colors.grey)))
@@ -641,7 +668,8 @@ class _AssignAthleteDialogState extends State<_AssignAthleteDialog> {
 class _ErrorView extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
-  const _ErrorView({required this.message, required this.onRetry});
+  final VoidCallback? onLogout;
+  const _ErrorView({required this.message, required this.onRetry, this.onLogout});
 
   @override
   Widget build(BuildContext context) {
@@ -660,6 +688,14 @@ class _ErrorView extends StatelessWidget {
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
             ),
+            if (onLogout != null) ...[
+              const SizedBox(height: 8),
+              TextButton.icon(
+                onPressed: onLogout,
+                icon: const Icon(Icons.logout),
+                label: const Text('Logout'),
+              ),
+            ],
           ],
         ),
       ),

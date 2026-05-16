@@ -1,0 +1,18 @@
+#!/bin/bash
+#
+# pre-push — updates PLAN.md via Claude before pushing to develop or master
+#
+
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+if [[ "$BRANCH" == "develop" || "$BRANCH" == "master" ]]; then
+  echo "Updating PLAN.md before push..."
+  "$(git rev-parse --show-toplevel)/scripts/update-plan.sh"
+
+  if git diff --quiet PLAN.md; then
+    echo "PLAN.md unchanged."
+  else
+    git add PLAN.md
+    git commit -m "Update PLAN.md before push"
+  fi
+fi

@@ -5,6 +5,7 @@ import 'screens/auth/register_screen.dart';
 import 'screens/athlete/athlete_dashboard_screen.dart';
 import 'screens/athlete/exercise_assistant_screen.dart';
 import 'screens/coach/coach_dashboard_screen.dart';
+import 'services/api_service.dart';
 
 // Injected at build time: flutter build web --dart-define=DEMO_MODE=true
 const bool kDemoMode = bool.fromEnvironment('DEMO_MODE', defaultValue: false);

@@ -7,8 +7,8 @@ Updated whenever a phase is completed or started.
 
 ## Current status
 **Active branch:** `develop`
-**Last updated:** 2026-05-02
-**Open PR:** `develop → master` (pending merge)
+**Last updated:** 2026-05-15
+**Open PR:** `develop → master` (pending merge — user merging from GitHub UI)
 
 ---
 
@@ -55,12 +55,13 @@ Updated whenever a phase is completed or started.
 ## Pending / Next steps
 
 ### High priority
-- [ ] **Merge PR** `develop → master` — live testing confirmed everything works
-- [ ] **Flutter: coach screens** — only athlete dashboard exists in mobile right now
-- [ ] **Flutter: error handling in UI** — 401/403 responses fail silently, no message shown to user
+- [ ] **Merge PR** `develop → master` — live testing confirmed everything works (user merging from GitHub UI)
+- [x] **Flutter: coach screens** — implemented in commit 2f9fe6a: Athletes tab (list + assign), Workouts tab (create + delete), Availability tab (add + delete)
+- [x] **Flutter: error handling in UI** — 401 redirects to login, 403/other show SnackBar or _ErrorView with retry. Fixed missing ApiService import in main.dart (2026-05-15)
+- [ ] **Flutter: _ErrorView logout button** — when a 403 appears on a data-load screen, the Retry button loops forever; needs a "Logout" option
 
 ### Medium priority
-- [ ] **Assign coach to athlete** — backend endpoint exists, no UI
+- [x] **Assign coach to athlete** — implemented in commit 2f9fe6a: FloatingActionButton in Athletes tab shows unassigned athletes dialog
 - [ ] **Flutter: pagination** — backend paginates but Flutter loads everything with no infinite scroll
 - [ ] **Input validation** — no `@Valid` / `@NotNull` on incoming DTOs
 - [ ] **Flutter tests** — only backend is tested

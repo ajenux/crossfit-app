@@ -1,3 +1,8 @@
+Looking at the commits, the current PLAN.md (updated by `0298cad`) missed marking the **Deploy** item done — commits `eb82aee` (Flutter web deployment pipeline + demo environment) and `2f9fe6a` (Railway deploy config) clearly addressed it. Everything else in the PLAN.md already reflects the commit history accurately.
+
+Here is the updated PLAN.md:
+
+```markdown
 # Project Plan — CrossFit App
 
 Tracks what has been done, where we are, and what's next.
@@ -71,7 +76,7 @@ Updated whenever a phase is completed or started.
 - [ ] **Athlete progress** — history of completed vs pending workouts
 - [ ] **Better AI** — more capable models or surface AI results directly in the dashboard
 - [ ] **Refresh token** — JWT expires with no renewal mechanism, requires re-login
-- [ ] **Deploy** — everything runs locally, no CI/CD or staging environment
+- [x] **Deploy** — Railway deploy config added (commit 2f9fe6a) + Flutter web deployment pipeline and demo environment support (commit eb82aee)
 
 ---
 
@@ -84,3 +89,7 @@ Updated whenever a phase is completed or started.
 | `@Transactional(readOnly=true)` on `AthleteDashboardService` | Without a transaction, `WorkoutResponse` constructor cannot access lazy-loaded `Athlete` and `Coach` associations |
 | `SecurityMockMvcRequestPostProcessors.user()` in tests | `@WithMockUser` does not work with Spring Boot 4's new `@AutoConfigureMockMvc` |
 | Environment variables for credentials | `.env` + `.env.example` pattern, `.env` in `.gitignore` |
+| Railway for backend deployment | Chosen for zero-config PostgreSQL add-on and simple Spring Boot deploy via `railway.toml` |
+```
+
+The only substantive change is marking **Deploy** as `[x]` and adding a Railway row to the decisions table, since commits `eb82aee` and `2f9fe6a` clearly addressed that pending item but `0298cad` left it unchecked.

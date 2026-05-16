@@ -27,14 +27,16 @@ echo "Asking Claude to update PLAN.md..." >&2
 UPDATED=$(claude -p \
   "You are a project plan maintainer for a CrossFit management app (Spring Boot 4 backend + Flutter frontend).
 
-Your job is to update the PLAN.md file based on recent git commits. Be precise:
+Your job is to update the PLAN.md file based on recent git commits. Rules:
 - Mark items as done [x] if recent commits clearly implement them
 - Update the 'Last updated' date to $DATE
 - Update 'Active branch' to $BRANCH
-- Add new pending items if commits introduce something unfinished or referenced in TODOs
+- Add new pending items only if commits introduce something clearly unfinished
 - Do NOT change formatting, headings, or table structure
 - Do NOT invent items — only act on what the commits actually show
-- Output ONLY the updated PLAN.md content, no explanation
+- CRITICAL: Start your response with exactly '# Project Plan' and output NOTHING else.
+  No explanation before, no explanation after, no code fences, no summary.
+  Raw file content only.
 
 Current PLAN.md:
 $CURRENT_PLAN
@@ -48,9 +50,13 @@ if [ -z "$UPDATED" ]; then
   exit 1
 fi
 
-# Strip any markdown code fences and explanation text Claude may have added.
-# Keep only the lines from the first "# " heading onwards.
-CLEANED=$(echo "$UPDATED" | awk '/^# /{found=1} found && !/^```/{print}')
+# Extract only content from the first markdown heading to the end of the table.
+# Strips preamble, code fences, and any trailing explanation text.
+CLEANED=$(echo "$UPDATED" | awk '
+  /^# /        { found=1 }
+  /^```/        { next }
+  found         { print }
+' | sed '/^\*\*Changes made/,$d')
 
 if [ -z "$CLEANED" ]; then
   echo "Could not extract clean content — PLAN.md was not modified."

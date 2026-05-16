@@ -90,5 +90,3 @@ Updated whenever a phase is completed or started.
 | `SecurityMockMvcRequestPostProcessors.user()` in tests | `@WithMockUser` does not work with Spring Boot 4's new `@AutoConfigureMockMvc` |
 | Environment variables for credentials | `.env` + `.env.example` pattern, `.env` in `.gitignore` |
 | Railway for backend deployment | Chosen for zero-config PostgreSQL add-on and simple Spring Boot deploy via `railway.toml` |
-
-**Changes made:** Five new done items added under Quality, based on commits `8b7ec62` (ARCHITECTURE.md), `3bddf1f` (ApiService typed refactor), `6778e32` (commit message hook), and `0298cad` (CLAUDE.md + pre-push hook). Everything else was already accurate.

@@ -7,8 +7,11 @@ Updated whenever a phase is completed or started.
 
 ## Current status
 **Active branch:** `develop`
-**Last updated:** 2026-05-15
-**Open PR:** `develop → master` (pending merge — user merging from GitHub UI)
+**Last updated:** 2026-05-16
+**Production:**
+- Backend: `https://crossfit-app-production-fcf2.up.railway.app` (Railway + PostgreSQL)
+- Frontend: `https://ajenux.github.io/crossfit-app` (GitHub Pages, auto-deploy on push to master)
+- Full flow tested and working: register, login, assign athlete, create workout, athlete dashboard
 
 ---
 
@@ -71,7 +74,10 @@ Updated whenever a phase is completed or started.
 - [ ] **[CRITICAL] Rate limiting en login** — sin límite de intentos, el endpoint `/api/auth/login` es vulnerable a fuerza bruta. Agregar Bucket4j o similar.
 
 ### High priority
-- [ ] **Merge PR** `develop → master` — live testing confirmed everything works (user merging from GitHub UI)
+- [ ] **Google Sheets integration** — import workout plans from coach's Google Sheet and auto-assign to athletes (Ale/Fabi with A/F weight variants)
+  - **Estado:** Service Account creada (`crossfit-sheets@crossfit-app-496502.iam.gserviceaccount.com`)
+  - **Bloqueado:** el sheet pertenece al entrenador — necesita que él comparta el sheet con el email de la service account como Lector
+  - **Pendiente tras desbloqueo:** agregar credenciales JSON a Railway como env var, implementar endpoint backend + UI Flutter para seleccionar semana/día e importar
 
 ### Medium priority
 - [ ] **Flutter: pagination** — backend paginates but Flutter loads everything with no infinite scroll
@@ -97,3 +103,5 @@ Updated whenever a phase is completed or started.
 | Environment variables for credentials | `.env` + `.env.example` pattern, `.env` in `.gitignore` |
 | Railway for backend deployment | Chosen for zero-config PostgreSQL add-on and simple Spring Boot deploy via `railway.toml` |
 | GitHub Pages for Flutter web | Switched from Netlify to GitHub Pages for simpler CI/CD integration via GitHub Actions |
+| Google Sheets Service Account | Sheet is private and owned by the coach — service account (`crossfit-sheets@crossfit-app-496502.iam.gserviceaccount.com`) is the correct auth pattern for server-to-server access without OAuth |
+| A/F weight notation in sheet | A = Ale (male athlete), F = Fabi (female athlete) — same program, different weights. Import will generate two workouts per day automatically |

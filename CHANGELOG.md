@@ -2,6 +2,19 @@
 
 ## [Unreleased] - develop branch
 
+### Phase 4 — Google Sheets Import
+- Added Google Sheets integration to import workout plans from the coach's private spreadsheet
+- Backend reads the sheet via Google Sheets API v4 using a Service Account (server-to-server, no OAuth)
+- Sheet is parsed into weekly blocks (each block = N days, each day = calentamiento + fuerza + WOD)
+- Weight notation `(X/Y)` is split automatically: athlete A receives `(X)`, athlete B receives `(Y)`
+- New endpoints:
+  - `GET /api/sheets/weeks` — returns list of available weeks with day count
+  - `POST /api/sheets/import` — imports one full week, creating 2 workouts per day (one per athlete)
+- New services: `GoogleSheetsService` (parsing), `SheetsImportService` (workout creation)
+- New DTOs: `WeekPreviewResponse`, `SheetsImportRequest`, `SheetsImportResponse`
+- Flutter: new **Import** tab in coach dashboard with week selector, two athlete dropdowns (heavier/lighter weights), and date picker for the week start date
+- Credentials: Service Account JSON stored as `GOOGLE_CREDENTIALS_JSON` env var (Railway + local `.env`)
+
 ### Phase 1 — Coach Availability Calendar
 - Added `CoachAvailability` entity supporting two modes:
   - **Recurring** — e.g. every Monday 9am–12pm (`dayOfWeek` + `startTime` + `endTime`)

@@ -19,6 +19,7 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
       _AthletesTab(coachId: widget.coachId),
       _WorkoutsTab(coachId: widget.coachId),
       _AvailabilityTab(coachId: widget.coachId),
+      _ImportTab(coachId: widget.coachId),
     ];
 
     return Scaffold(
@@ -37,11 +38,13 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
       body: tabs[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
+        type: BottomNavigationBarType.fixed,
         onTap: (i) => setState(() => _selectedIndex = i),
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Athletes'),
           BottomNavigationBarItem(icon: Icon(Icons.sports), label: 'Workouts'),
           BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: 'Availability'),
+          BottomNavigationBarItem(icon: Icon(Icons.table_chart), label: 'Import'),
         ],
       ),
     );
@@ -658,6 +661,196 @@ class _AssignAthleteDialogState extends State<_AssignAthleteDialog> {
           child: const Text('Assign'),
         ),
       ],
+    );
+  }
+}
+
+// ─── Import Tab ──────────────────────────────────────────────────────────────
+
+class _ImportTab extends StatefulWidget {
+  final int coachId;
+  const _ImportTab({required this.coachId});
+
+  @override
+  State<_ImportTab> createState() => _ImportTabState();
+}
+
+class _ImportTabState extends State<_ImportTab> {
+  List<dynamic> _weeks = [];
+  List<dynamic> _athletes = [];
+  bool _loading = true;
+  String? _error;
+
+  dynamic _selectedWeek;
+  dynamic _athleteA;
+  dynamic _athleteB;
+  DateTime _startDate = DateTime.now();
+  bool _importing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    final results = await Future.wait([
+      ApiService.getSheetWeeks(),
+      ApiService.getAthletesByCoach(widget.coachId),
+    ]);
+    if (!mounted) return;
+    final weeksResult = results[0];
+    final athletesResult = results[1];
+
+    if (weeksResult.isUnauthorized) {
+      await ApiService.clearToken();
+      if (mounted) context.go('/login');
+      return;
+    }
+    if (!weeksResult.isSuccess) {
+      setState(() { _loading = false; _error = weeksResult.errorMessage; });
+      return;
+    }
+
+    final weeks = weeksResult.data ?? [];
+    final athletes = athletesResult.isSuccess ? (athletesResult.data ?? []) : [];
+    setState(() {
+      _weeks = weeks;
+      _athletes = athletes;
+      _selectedWeek = weeks.isNotEmpty ? weeks.first : null;
+      _athleteA = athletes.isNotEmpty ? athletes.first : null;
+      _athleteB = athletes.length > 1 ? athletes[1] : (athletes.isNotEmpty ? athletes.first : null);
+      _loading = false;
+    });
+  }
+
+  Future<void> _import() async {
+    if (_selectedWeek == null || _athleteA == null || _athleteB == null) return;
+    setState(() => _importing = true);
+    final result = await ApiService.importSheetWeek({
+      'weekNumber': _selectedWeek['weekNumber'],
+      'athleteAId': _athleteA['id'],
+      'athleteBId': _athleteB['id'],
+      'coachId': widget.coachId,
+      'startDate': _startDate.toIso8601String().split('T').first,
+    });
+    if (!mounted) return;
+    setState(() => _importing = false);
+    if (result.isUnauthorized) {
+      await ApiService.clearToken();
+      if (mounted) context.go('/login');
+    } else if (!result.isSuccess) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.errorMessage), backgroundColor: Colors.red),
+      );
+    } else {
+      final data = result.data!;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Imported ${data['workoutsCreated']} workouts for week ${data['weekNumber']}'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) {
+      return _ErrorView(
+        message: _error!,
+        onRetry: _load,
+        onLogout: () async {
+          await ApiService.clearToken();
+          if (context.mounted) context.go('/login');
+        },
+      );
+    }
+
+    if (_weeks.isEmpty) {
+      return const Center(
+        child: Text('No weeks found in the sheet.', style: TextStyle(color: Colors.grey)),
+      );
+    }
+    if (_athletes.isEmpty) {
+      return const Center(
+        child: Text('No athletes assigned yet. Assign athletes first.', style: TextStyle(color: Colors.grey)),
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('Import from Google Sheets', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          const Text('Select a week and assign athletes to create workouts automatically.', style: TextStyle(color: Colors.grey)),
+          const SizedBox(height: 24),
+          DropdownButtonFormField<dynamic>(
+            value: _selectedWeek,
+            decoration: const InputDecoration(labelText: 'Week', border: OutlineInputBorder()),
+            items: _weeks.map((w) => DropdownMenuItem(
+              value: w,
+              child: Text('Week ${w['weekNumber']} · ${w['dayCount']} days'),
+            )).toList(),
+            onChanged: (v) => setState(() => _selectedWeek = v),
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<dynamic>(
+            value: _athleteA,
+            decoration: const InputDecoration(
+              labelText: 'Athlete A (heavier weights)',
+              border: OutlineInputBorder(),
+            ),
+            items: _athletes.map((a) => DropdownMenuItem(value: a, child: Text(a['name']))).toList(),
+            onChanged: (v) => setState(() => _athleteA = v),
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<dynamic>(
+            value: _athleteB,
+            decoration: const InputDecoration(
+              labelText: 'Athlete B (lighter weights)',
+              border: OutlineInputBorder(),
+            ),
+            items: _athletes.map((a) => DropdownMenuItem(value: a, child: Text(a['name']))).toList(),
+            onChanged: (v) => setState(() => _athleteB = v),
+          ),
+          const SizedBox(height: 16),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text('Start date: ${_startDate.toIso8601String().split('T').first}'),
+            subtitle: const Text('Day 1 = this date, Day 2 = next day, etc.'),
+            trailing: const Icon(Icons.date_range),
+            shape: RoundedRectangleBorder(
+              side: const BorderSide(color: Colors.grey),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: _startDate,
+                firstDate: DateTime(2020),
+                lastDate: DateTime(2030),
+              );
+              if (picked != null) setState(() => _startDate = picked);
+            },
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton.icon(
+            onPressed: _importing ? null : _import,
+            icon: _importing
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.download),
+            label: Text(_importing ? 'Importing...' : 'Import Week'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -261,6 +261,38 @@ class ApiService {
     }
   }
 
+  // Google Sheets import
+  static Future<ApiResult<List<dynamic>>> getSheetWeeks() async {
+    try {
+      final res = await http.get(
+        Uri.parse('$baseUrl/sheets/weeks'),
+        headers: await _authHeaders(),
+      );
+      if (res.statusCode == 200) {
+        return ApiResult(data: jsonDecode(res.body) as List<dynamic>, statusCode: 200);
+      }
+      return ApiResult(statusCode: res.statusCode);
+    } on SocketException {
+      return const ApiResult(statusCode: 0);
+    }
+  }
+
+  static Future<ApiResult<Map<String, dynamic>>> importSheetWeek(Map<String, dynamic> data) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/sheets/import'),
+        headers: await _authHeaders(),
+        body: jsonEncode(data),
+      );
+      if (res.statusCode == 200) {
+        return ApiResult(data: jsonDecode(res.body) as Map<String, dynamic>, statusCode: 200);
+      }
+      return ApiResult(statusCode: res.statusCode);
+    } on SocketException {
+      return const ApiResult(statusCode: 0);
+    }
+  }
+
   // AI exercise assistant
   static Future<ApiResult<Map<String, dynamic>>> explainExercise(String exercise) async {
     try {

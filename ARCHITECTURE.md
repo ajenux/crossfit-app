@@ -95,7 +95,9 @@ com.example.demo
 │   ├── CoachAvailabilityService
 │   ├── AthleteDashboardService - Aggregates dashboard data in one call
 │   ├── AiService             - Calls Ollama for exercise explanations and workout descriptions
-│   └── ExerciseMediaService  - Calls ExerciseDB API to fetch exercise GIFs
+│   ├── ExerciseMediaService  - Calls ExerciseDB API to fetch exercise GIFs
+│   ├── GoogleSheetsService   - Reads and parses the coach's Google Sheet into week/day blocks
+│   └── SheetsImportService   - Creates workouts from parsed sheet data, splitting weights per athlete
 │
 └── controller/           ← HTTP endpoints (thin layer, delegates to services)
     ├── AuthController        - POST /api/auth/register, POST /api/auth/login
@@ -104,7 +106,8 @@ com.example.demo
     ├── WorkoutController     - GET/POST/PUT/DELETE /api/workouts
     ├── CoachAvailabilityController - POST/GET/DELETE /api/availability
     ├── AthleteDashboardController  - GET /api/dashboard/athlete/{id}
-    └── AiController          - POST /api/ai/exercise, POST /api/ai/generate-workout
+    ├── AiController          - POST /api/ai/exercise, POST /api/ai/generate-workout
+    └── SheetsController      - GET /api/sheets/weeks, POST /api/sheets/import
 ```
 
 ### Request lifecycle
@@ -177,7 +180,7 @@ mobile/lib/
     │   ├── athlete_dashboard_screen.dart
     │   └── exercise_assistant_screen.dart
     └── coach/
-        └── coach_dashboard_screen.dart  ← 3 tabs: Athletes, Workouts, Availability
+        └── coach_dashboard_screen.dart  ← 4 tabs: Athletes, Workouts, Availability, Import
 ```
 
 ### Navigation (go_router)
@@ -420,7 +423,8 @@ Sensitive values are **never hardcoded**. They live in a `.env` file (not commit
 DB_USERNAME=crossfit_user
 DB_PASSWORD=your_db_password
 JWT_SECRET=your_jwt_secret_min_32_chars
-EXERCISEDB_API_KEY=your_rapidapi_key   # optional, AI still works without it
+EXERCISEDB_API_KEY=your_rapidapi_key        # optional, AI still works without it
+GOOGLE_CREDENTIALS_JSON={"type":"service_account",...}  # Google Sheets service account JSON (single line)
 ```
 
 `application.properties` reads these via Spring's `${VAR:default}` syntax:

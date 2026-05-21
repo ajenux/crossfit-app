@@ -74,10 +74,13 @@ Updated whenever a phase is completed or started.
 - [ ] **[CRITICAL] Rate limiting en login** — sin límite de intentos, el endpoint `/api/auth/login` es vulnerable a fuerza bruta. Agregar Bucket4j o similar.
 
 ### High priority
-- [ ] **Google Sheets integration** — import workout plans from coach's Google Sheet and auto-assign to athletes (Ale/Fabi with A/F weight variants)
-  - **Estado:** Service Account creada (`crossfit-sheets@crossfit-app-496502.iam.gserviceaccount.com`)
-  - **Bloqueado:** el sheet pertenece al entrenador — necesita que él comparta el sheet con el email de la service account como Lector
-  - **Pendiente tras desbloqueo:** agregar credenciales JSON a Railway como env var, implementar endpoint backend + UI Flutter para seleccionar semana/día e importar
+- [x] **Google Sheets integration** — importa planes de entrenamiento desde el sheet del profe y los asigna automáticamente
+  - Sheet ID: `1LUksfUebyzp2ZeplLAFEmOlvwbgBOOlw25JU7ivbUgk`
+  - Service Account: `crossfit-sheets@crossfit-app-496502.iam.gserviceaccount.com`
+  - `GOOGLE_CREDENTIALS_JSON` configurado en Railway y en `.env` local
+  - Endpoints: `GET /api/sheets/weeks`, `POST /api/sheets/import`
+  - Flutter: tab "Import" en coach dashboard — selecciona semana, Atleta A (pesos altos), Atleta B (pesos bajos), fecha inicio
+  - Los pesos `(X/Y)` se separan automáticamente por atleta
 
 ### Medium priority
 - [ ] **Flutter: pagination** — backend paginates but Flutter loads everything with no infinite scroll

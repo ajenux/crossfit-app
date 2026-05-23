@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../services/api_service.dart';
+import '../../services/api_client.dart';
+import '../../services/dashboard_service.dart';
 
 class AthleteDashboardScreen extends StatefulWidget {
   final int athleteId;
@@ -23,12 +24,12 @@ class _AthleteDashboardScreenState extends State<AthleteDashboardScreen> {
 
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
-    final result = await ApiService.getAthleteDashboard(widget.athleteId);
+    final result = await DashboardService.getAthleteDashboard(widget.athleteId);
     if (!mounted) return;
     if (result.isSuccess) {
       setState(() { _data = result.data; _loading = false; });
     } else if (result.isUnauthorized) {
-      await ApiService.clearToken();
+      await ApiClient.clearToken();
       if (mounted) context.go('/login');
     } else {
       setState(() { _loading = false; _error = result.errorMessage; });
@@ -49,7 +50,7 @@ class _AthleteDashboardScreenState extends State<AthleteDashboardScreen> {
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
-              await ApiService.clearToken();
+              await ApiClient.clearToken();
               if (mounted) context.go('/login');
             },
           ),
@@ -62,7 +63,7 @@ class _AthleteDashboardScreenState extends State<AthleteDashboardScreen> {
                   message: _error!,
                   onRetry: _load,
                   onLogout: () async {
-                    await ApiService.clearToken();
+                    await ApiClient.clearToken();
                     if (mounted) context.go('/login');
                   },
                 )

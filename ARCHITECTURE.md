@@ -41,8 +41,8 @@ and how to extend it. It is intended for any developer joining the project.
 **Stack:**
 - Backend: Spring Boot 4, Spring Security 7, Spring Data JPA, PostgreSQL
 - Mobile: Flutter (Dart), go_router, SharedPreferences, http
-- Auth: JWT (stateless, no sessions)
-- AI: Ollama running locally (llama3.2 model) + ExerciseDB for GIFs
+- Auth: JWT (stateless, no sessions) + refresh token (DB-backed, 7-day expiry)
+- AI: Anthropic Claude Haiku in production / Ollama (llama3.2) in local dev + ExerciseDB for GIFs
 
 ---
 
@@ -53,9 +53,10 @@ and how to extend it. It is intended for any developer joining the project.
 ```
 com.example.demo
 ├── config/               ← Spring configuration beans
-│   ├── SecurityConfig        - Filter chain, CORS, auth provider
+│   ├── SecurityConfig        - Filter chain, CORS (env-configurable origins), auth provider
+│   ├── AiConfig              - Selects Anthropic or Ollama model based on ANTHROPIC_API_KEY
 │   ├── UserDetailsConfig     - Loads User from DB for Spring Security
-│   └── GlobalExceptionHandler- Converts exceptions to HTTP responses
+│   └── GlobalExceptionHandler- Converts exceptions to HTTP responses (403, 400, 503)
 │
 ├── security/             ← JWT infrastructure
 │   ├── JwtService            - Token generation and validation
@@ -69,38 +70,43 @@ com.example.demo
 │   ├── Coach                 - Coach profile, linked to User via @OneToOne
 │   ├── Workout               - A workout assigned to an athlete by a coach
 │   ├── WorkoutType           - Enum: AMRAP, FOR_TIME, EMOM, STRENGTH, ENDURANCE
-│   └── CoachAvailability     - A time slot when a coach is available
+│   ├── CoachAvailability     - A time slot when a coach is available
+│   └── RefreshToken          - DB-backed refresh token (UUID, user FK, expiryDate)
 │
 ├── repository/           ← Spring Data JPA interfaces (auto-implemented)
 │   ├── UserRepository
 │   ├── AthleteRepository
 │   ├── CoachRepository
 │   ├── WorkoutRepository
-│   └── CoachAvailabilityRepository
+│   ├── CoachAvailabilityRepository
+│   └── RefreshTokenRepository
 │
 ├── dto/                  ← Data Transfer Objects (API input/output shapes)
-│   ├── LoginRequest / RegisterRequest
-│   ├── AuthResponse          - Returns token + role + profileId on login/register
+│   ├── LoginRequest / RegisterRequest  - @Valid annotated, all fields constrained
+│   ├── AuthResponse          - Returns token + refreshToken + role + profileId
 │   ├── AthleteRequest / AthleteResponse
 │   ├── CoachRequest / CoachResponse
 │   ├── WorkoutRequest / WorkoutResponse
 │   ├── CoachAvailabilityRequest / CoachAvailabilityResponse
+│   ├── SheetsImportRequest   - weekNumber, coachId, startDate, List<AthleteImport>
+│   ├── SheetsImportResponse
 │   └── AthleteDashboardResponse - Composite: athlete + workouts + availability
 │
 ├── service/              ← Business logic
 │   ├── AuthService           - register() and login(), creates profile on register
+│   ├── RefreshTokenService   - createRefreshToken(), verifyAndGet(), deleteByUser()
 │   ├── AthleteService        - CRUD with pagination, filtered by coach if requested
 │   ├── CoachService          - CRUD with pagination
 │   ├── WorkoutService        - CRUD + fine-grained auth (athletes see only own data)
 │   ├── CoachAvailabilityService
 │   ├── AthleteDashboardService - Aggregates dashboard data in one call
-│   ├── AiService             - Calls Ollama for exercise explanations and workout descriptions
+│   ├── AiService             - Delegates to ChatLanguageModel (Anthropic or Ollama)
 │   ├── ExerciseMediaService  - Calls ExerciseDB API to fetch exercise GIFs
 │   ├── GoogleSheetsService   - Reads and parses the coach's Google Sheet into week/day blocks
-│   └── SheetsImportService   - Creates workouts from parsed sheet data, splitting weights per athlete
+│   └── SheetsImportService   - Creates workouts from parsed sheet data, N athletes with configurable weight index
 │
 └── controller/           ← HTTP endpoints (thin layer, delegates to services)
-    ├── AuthController        - POST /api/auth/register, POST /api/auth/login
+    ├── AuthController        - POST /api/auth/register, /login, /refresh, /logout
     ├── AthleteController     - GET/POST/PUT/DELETE /api/athletes
     ├── CoachController       - GET/POST/PUT/DELETE /api/coaches
     ├── WorkoutController     - GET/POST/PUT/DELETE /api/workouts
@@ -124,7 +130,7 @@ JwtAuthFilter.doFilter()
    │
    ▼
 SecurityFilterChain
-   ├── /api/auth/** → permitAll (no token required)
+   ├── /api/auth/login, /register, /refresh, /logout → permitAll
    └── all others   → authenticated
    │
    ▼
@@ -138,7 +144,9 @@ Service method
    │
    ▼
 GlobalExceptionHandler
-   └── AccessDeniedException → 403 Forbidden (with message)
+   ├── AccessDeniedException      → 403 Forbidden
+   ├── MethodArgumentNotValidException → 400 Bad Request (field errors)
+   └── AiUnavailableException     → 503 Service Unavailable
 ```
 
 ### Database schema (key relationships)
@@ -147,11 +155,13 @@ GlobalExceptionHandler
 users (id, email, password, role)
   │
   ├── athletes (id, name, email, user_id FK, coach_id FK)
-  │                                  │
-  └── coaches  (id, name, email, user_id FK)
-                    │
-                    └── coach_availability (id, coach_id FK, day_of_week,
-                                           specific_date, start_time, end_time, recurring)
+  │
+  ├── coaches  (id, name, email, user_id FK)
+  │                 │
+  │                 └── coach_availability (id, coach_id FK, day_of_week,
+  │                                        specific_date, start_time, end_time, recurring)
+  │
+  └── refresh_tokens (id, token UUID, user_id FK, expiry_date)
 
 workouts (id, name, description, type, scheduled_date, athlete_id FK, coach_id FK)
 ```
@@ -171,7 +181,14 @@ without a valid user record, and deleting the user cascades correctly.
 mobile/lib/
 ├── main.dart                  ← App entry point, GoRouter route definitions
 ├── services/
-│   └── api_service.dart       ← All HTTP calls, token storage, ApiResult<T>
+│   ├── api_client.dart        ← ApiResult<T>, token storage, HTTP wrappers with 401 retry
+│   ├── auth_service.dart      ← login(), register(), logout()
+│   ├── athlete_service.dart   ← getAllAthletes(), getAthletesByCoach(), assignAthleteToCoach()
+│   ├── workout_service.dart   ← getWorkoutsByCoach(), createWorkout(), deleteWorkout()
+│   ├── availability_service.dart ← getCoachAvailability(), addAvailability(), deleteAvailability()
+│   ├── sheets_service.dart    ← getSheetWeeks(), importSheetWeek()
+│   ├── ai_service.dart        ← explainExercise()
+│   └── dashboard_service.dart ← getAthleteDashboard()
 └── screens/
     ├── auth/
     │   ├── login_screen.dart
@@ -225,27 +242,32 @@ Each screen checks the result and handles each case:
 ## 4. Authentication flow
 
 ```
-Register:
-  Client → POST /api/auth/register {name, email, password, role}
-         ← 200 {token, role, profileId}
-  Server: creates User + creates Athlete or Coach profile linked by user_id FK
-  Client: saves token + role + profileId to SharedPreferences
+Register / Login:
+  Client → POST /api/auth/register or /login {email, password, ...}
+         ← 200 {token, refreshToken, role, profileId}
+  Server: creates/validates user, generates access token (1h) + refresh token (7d, stored in DB)
+  Client: saves token + refreshToken + role + profileId to SharedPreferences
           navigates to /athlete/{id} or /coach/{id}
-
-Login:
-  Client → POST /api/auth/login {email, password}
-         ← 200 {token, role, profileId}
-  Server: validates credentials, resolves profileId via findByUser()
-  Client: same as register
 
 Every subsequent request:
   Client → any endpoint with header: Authorization: Bearer <token>
   Server: JwtAuthFilter validates token, loads user, sets SecurityContext
+
+When access token expires (401 response):
+  ApiClient detects 401 → POST /api/auth/refresh {refreshToken}
+         ← 200 {token, refreshToken, role, profileId}  (new tokens)
+  Client: saves new tokens, retries original request transparently
+  If refresh also fails: clear all tokens + redirect to login
+
+Logout:
+  Client → POST /api/auth/logout {refreshToken}
+  Server: deletes refresh token from DB
+  Client: clears all local storage
 ```
 
 **Token storage:** SharedPreferences (device local storage).
-**Token expiry:** Configurable via `jwt.expiration-ms` in application.properties.
-**No refresh token** currently — expired token requires re-login.
+**Access token expiry:** 1 hour (`jwt.expiration-ms=3600000`).
+**Refresh token expiry:** 7 days (`jwt.refresh-expiration-days=7`), stored in `refresh_tokens` table.
 
 ---
 
@@ -423,8 +445,11 @@ Sensitive values are **never hardcoded**. They live in a `.env` file (not commit
 DB_USERNAME=crossfit_user
 DB_PASSWORD=your_db_password
 JWT_SECRET=your_jwt_secret_min_32_chars
-EXERCISEDB_API_KEY=your_rapidapi_key        # optional, AI still works without it
-GOOGLE_CREDENTIALS_JSON={"type":"service_account",...}  # Google Sheets service account JSON (single line)
+EXERCISEDB_API_KEY=your_rapidapi_key          # optional, AI still works without it
+GOOGLE_CREDENTIALS_JSON={"type":"service_account",...}  # Google Sheets service account (single line JSON)
+ANTHROPIC_API_KEY=sk-ant-...                  # optional; if absent, falls back to Ollama locally
+CORS_ALLOWED_ORIGINS=http://localhost:3000    # in production: https://ajenux.github.io
+OLLAMA_BASE_URL=http://localhost:11434        # only used when ANTHROPIC_API_KEY is not set
 ```
 
 `application.properties` reads these via Spring's `${VAR:default}` syntax:
@@ -432,7 +457,11 @@ GOOGLE_CREDENTIALS_JSON={"type":"service_account",...}  # Google Sheets service 
 spring.datasource.username=${DB_USERNAME:crossfit_user}
 spring.datasource.password=${DB_PASSWORD}
 jwt.secret=${JWT_SECRET}
-jwt.expiration-ms=86400000   # 24 hours
+jwt.expiration-ms=3600000          # 1 hour (access token)
+jwt.refresh-expiration-days=7      # 7 days (refresh token)
+cors.allowed-origins=${CORS_ALLOWED_ORIGINS:http://localhost:3000,...}
+anthropic.api.key=${ANTHROPIC_API_KEY:}
+ollama.base-url=${OLLAMA_BASE_URL:http://localhost:11434}
 ```
 
 **To load the variables before starting the server:**
@@ -440,11 +469,9 @@ jwt.expiration-ms=86400000   # 24 hours
 export $(cat .env | xargs) && ./mvnw spring-boot:run
 ```
 
-**Flutter base URL** is configured in `api_service.dart`:
-```dart
-static const String baseUrl = 'http://10.0.2.2:8080/api'; // Android emulator
-// Use 'http://localhost:8080/api' for iOS simulator
-```
+**Flutter base URL** is injected at build time via `--dart-define=API_URL=https://...`.
+Default in `api_client.dart`: `http://10.0.2.2:8080/api` (Android emulator).
+For iOS simulator: `--dart-define=API_URL=http://localhost:8080/api`.
 
 ---
 
@@ -475,7 +502,7 @@ export $(cat .env | xargs) && ./mvnw test
 
 ### Flutter tests
 Not yet implemented. The existing `test/widget_test.dart` is the default Flutter placeholder.
-Future tests should use `flutter_test` with mocked `ApiService`.
+Future tests should use `flutter_test` with mocked service classes (e.g. mock `AthleteService`, `WorkoutService`).
 
 ---
 
@@ -498,9 +525,14 @@ export $(cat .env | xargs) && ./mvnw spring-boot:run
 cd mobile
 flutter pub get
 
-# Android emulator: baseUrl is already set to 10.0.2.2:8080
-# iOS simulator: change baseUrl in api_service.dart to localhost:8080
+# Android emulator (default):
 flutter run
+
+# iOS simulator:
+flutter run --dart-define=API_URL=http://localhost:8080/api
+
+# Against production backend:
+flutter run --dart-define=API_URL=https://crossfit-app-production-fcf2.up.railway.app/api
 ```
 
 ### Git hooks (run once after cloning)
@@ -509,4 +541,8 @@ flutter run
 ```
 This activates:
 - `prepare-commit-msg` — auto-generates commit messages using Claude CLI when you run `git commit`
-- Run `./scripts/update-plan.sh` before pushing to update `PLAN.md` based on recent commits
+
+To update `PLAN.md` manually before a push:
+```bash
+./scripts/update-plan.sh && git add PLAN.md && git commit --amend --no-edit
+```

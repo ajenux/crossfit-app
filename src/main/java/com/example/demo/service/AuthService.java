@@ -7,6 +7,7 @@ import com.example.demo.model.Athlete;
 import com.example.demo.model.Coach;
 import com.example.demo.model.Role;
 import com.example.demo.model.User;
+import com.example.demo.model.RefreshToken;
 import com.example.demo.repository.AthleteRepository;
 import com.example.demo.repository.CoachRepository;
 import com.example.demo.repository.UserRepository;
@@ -28,6 +29,7 @@ public class AuthService {
     private final CoachRepository coachRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final RefreshTokenService refreshTokenService;
     private final AuthenticationManager authenticationManager;
 
     public AuthResponse register(RegisterRequest request) {
@@ -43,7 +45,8 @@ public class AuthService {
 
         Long profileId = createProfile(user, request.getName());
         String token = jwtService.generateToken(user);
-        return new AuthResponse(token, user.getRole().name(), profileId);
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
+        return new AuthResponse(token, refreshToken.getToken(), user.getRole().name(), profileId);
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -54,7 +57,8 @@ public class AuthService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
         Long profileId = resolveProfileId(user);
         String token = jwtService.generateToken(user);
-        return new AuthResponse(token, user.getRole().name(), profileId);
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
+        return new AuthResponse(token, refreshToken.getToken(), user.getRole().name(), profileId);
     }
 
     private Long createProfile(User user, String name) {
@@ -75,7 +79,7 @@ public class AuthService {
         return null;
     }
 
-    private Long resolveProfileId(User user) {
+    public Long resolveProfileId(User user) {
         if (user.getRole() == Role.ATHLETE) {
             return athleteRepository.findByUser(user)
                     .map(Athlete::getId)

@@ -6,6 +6,7 @@ import com.example.demo.service.AthleteService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -35,12 +36,12 @@ public class AthleteController {
     }
 
     @PostMapping
-    public ResponseEntity<AthleteResponse> create(@RequestBody AthleteRequest request) {
+    public ResponseEntity<AthleteResponse> create(@Valid @RequestBody AthleteRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(athleteService.create(request));
     }
 
     @PutMapping("/{id}")
-    public AthleteResponse update(@PathVariable Long id, @RequestBody AthleteRequest request) {
+    public AthleteResponse update(@PathVariable Long id, @Valid @RequestBody AthleteRequest request) {
         return athleteService.update(id, request);
     }
 

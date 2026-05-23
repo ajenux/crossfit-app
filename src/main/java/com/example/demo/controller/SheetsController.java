@@ -5,6 +5,7 @@ import com.example.demo.dto.SheetsImportResponse;
 import com.example.demo.dto.WeekPreviewResponse;
 import com.example.demo.service.SheetsImportService;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -31,7 +32,7 @@ public class SheetsController {
 
     @PostMapping("/import")
     @PreAuthorize("hasRole('COACH')")
-    public ResponseEntity<SheetsImportResponse> importWeek(@RequestBody SheetsImportRequest request)
+    public ResponseEntity<SheetsImportResponse> importWeek(@Valid @RequestBody SheetsImportRequest request)
             throws IOException, GeneralSecurityException {
         return ResponseEntity.ok(sheetsImportService.importWeek(request));
     }

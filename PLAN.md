@@ -7,7 +7,7 @@ Updated whenever a phase is completed or started.
 
 ## Current status
 **Active branch:** `develop`
-**Last updated:** 2026-05-21
+**Last updated:** 2026-05-22
 **Production:**
 - Backend: `https://crossfit-app-production-fcf2.up.railway.app` (Railway + PostgreSQL)
 - Frontend: `https://ajenux.github.io/crossfit-app` (GitHub Pages, auto-deploy on push to master)

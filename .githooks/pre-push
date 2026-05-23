@@ -13,6 +13,6 @@ if [[ "$BRANCH" == "develop" || "$BRANCH" == "master" ]]; then
     echo "PLAN.md unchanged."
   else
     git add PLAN.md
-    git commit -m "Update PLAN.md before push"
+    git commit --amend --no-edit
   fi
 fi

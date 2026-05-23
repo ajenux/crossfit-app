@@ -72,6 +72,7 @@ Updated whenever a phase is completed or started.
 - [x] `CLAUDE.md` added with project instructions for Claude
 - [x] Pre-push hook runs `update-plan.sh` to keep `PLAN.md` current before every push
 - [x] Fix `update-plan.sh` to strip Claude explanation text from output
+- [x] Fix pre-push hook to amend last commit instead of creating a new one
 - [x] **Flutter: _ErrorView logout button** — added Logout option to error screens so users are not stuck in a retry loop on 403 errors
 - [x] **Flutter: Athletes tab FAB fix** — FAB now visible even when the athlete list is empty, so coaches can assign athletes without needing existing entries
 - [x] **Input validation** — `@Valid` / `@NotNull` added to all request DTOs and controllers
@@ -115,3 +116,4 @@ Updated whenever a phase is completed or started.
 | `ALLOWED_ORIGINS` env var for CORS | Restricts API access to known frontend origins without hardcoding URLs; set to `https://ajenux.github.io` in Railway production |
 | Configurable AI provider | Anthropic (Claude) used in production for better quality; Ollama used locally to avoid API costs during development — switched via environment variable |
 | Split `ApiService` into feature-specific services | God class with mixed responsibilities made it hard to maintain and test; split into focused services per feature domain |
+| Pre-push hook amends last commit | Amending instead of creating a new commit keeps PLAN.md updates atomic with the triggering commit, avoiding extra noise in git history |

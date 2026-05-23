@@ -73,6 +73,7 @@ Updated whenever a phase is completed or started.
 - [x] Fix `update-plan.sh` to strip Claude explanation text from output
 - [x] **Flutter: _ErrorView logout button** — added Logout option to error screens so users are not stuck in a retry loop on 403 errors
 - [x] **Flutter: Athletes tab FAB fix** — FAB now visible even when the athlete list is empty, so coaches can assign athletes without needing existing entries
+- [x] **Input validation** — `@Valid` / `@NotNull` added to all request DTOs and controllers
 
 ---
 
@@ -83,12 +84,10 @@ Updated whenever a phase is completed or started.
 
 ### High priority
 - [ ] **Flutter: pagination** — backend paginates but Flutter loads everything with no infinite scroll
-- [ ] **Input validation** — no `@Valid` / `@NotNull` on incoming DTOs
 - [ ] **Flutter tests** — only backend is tested
 
 ### Medium priority
 - [ ] **Flutter: pagination** — backend paginates but Flutter loads everything with no infinite scroll
-- [ ] **Input validation** — no `@Valid` / `@NotNull` on incoming DTOs
 - [ ] **Flutter tests** — only backend is tested
 
 ### Low priority / Future ideas

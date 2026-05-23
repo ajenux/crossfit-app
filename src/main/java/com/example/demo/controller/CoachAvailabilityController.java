@@ -4,6 +4,7 @@ import com.example.demo.dto.CoachAvailabilityRequest;
 import com.example.demo.dto.CoachAvailabilityResponse;
 import com.example.demo.service.CoachAvailabilityService;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -20,7 +21,7 @@ public class CoachAvailabilityController {
 
     @PostMapping
     @PreAuthorize("hasRole('COACH')")
-    public ResponseEntity<CoachAvailabilityResponse> create(@RequestBody CoachAvailabilityRequest request) {
+    public ResponseEntity<CoachAvailabilityResponse> create(@Valid @RequestBody CoachAvailabilityRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(availabilityService.create(request));
     }
 

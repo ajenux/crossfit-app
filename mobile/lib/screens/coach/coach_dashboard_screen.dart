@@ -68,25 +68,66 @@ class _AthletesTab extends StatefulWidget {
 class _AthletesTabState extends State<_AthletesTab> {
   List<dynamic> _athletes = [];
   bool _loading = true;
+  bool _loadingMore = false;
+  bool _hasMore = true;
+  int _page = 0;
   String? _error;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _load();
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_loadingMore &&
+        _hasMore) {
+      _loadMore();
+    }
+  }
+
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
-    final result = await AthleteService.getAthletesByCoach(widget.coachId);
+    setState(() { _loading = true; _error = null; _page = 0; _hasMore = true; });
+    final result = await AthleteService.getAthletesByCoach(widget.coachId, page: 0);
     if (!mounted) return;
     if (result.isSuccess) {
-      setState(() { _athletes = result.data ?? []; _loading = false; });
+      setState(() {
+        _athletes = result.data ?? [];
+        _hasMore = !result.isLastPage;
+        _page = 1;
+        _loading = false;
+      });
     } else if (result.isUnauthorized) {
       await ApiClient.clearToken();
       if (mounted) context.go('/login');
     } else {
       setState(() { _loading = false; _error = result.errorMessage; });
+    }
+  }
+
+  Future<void> _loadMore() async {
+    setState(() => _loadingMore = true);
+    final result = await AthleteService.getAthletesByCoach(widget.coachId, page: _page);
+    if (!mounted) return;
+    if (result.isSuccess) {
+      setState(() {
+        _athletes.addAll(result.data ?? []);
+        _hasMore = !result.isLastPage;
+        _page++;
+        _loadingMore = false;
+      });
+    } else {
+      setState(() => _loadingMore = false);
     }
   }
 
@@ -107,22 +148,29 @@ class _AthletesTabState extends State<_AthletesTab> {
       body: _athletes.isEmpty
           ? const Center(child: Text('No athletes assigned yet. Tap + to assign one.', style: TextStyle(color: Colors.grey)))
           : RefreshIndicator(
-        onRefresh: _load,
-        child: ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: _athletes.length,
-          itemBuilder: (_, i) {
-            final a = _athletes[i];
-            return Card(
-              child: ListTile(
-                leading: const CircleAvatar(child: Icon(Icons.person)),
-                title: Text(a['name']),
-                subtitle: Text(a['email']),
+              onRefresh: _load,
+              child: ListView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.all(16),
+                itemCount: _athletes.length + (_loadingMore ? 1 : 0),
+                itemBuilder: (_, i) {
+                  if (i == _athletes.length) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  final a = _athletes[i];
+                  return Card(
+                    child: ListTile(
+                      leading: const CircleAvatar(child: Icon(Icons.person)),
+                      title: Text(a['name']),
+                      subtitle: Text(a['email']),
+                    ),
+                  );
+                },
               ),
-            );
-          },
-        ),
-      ),
+            ),
       floatingActionButton: FloatingActionButton(
         onPressed: _assignAthlete,
         child: const Icon(Icons.person_add),
@@ -195,19 +243,39 @@ class _WorkoutsTabState extends State<_WorkoutsTab> {
   List<dynamic> _workouts = [];
   List<dynamic> _athletes = [];
   bool _loading = true;
+  bool _loadingMore = false;
+  bool _hasMore = true;
+  int _page = 0;
   String? _error;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _load();
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_loadingMore &&
+        _hasMore) {
+      _loadMore();
+    }
+  }
+
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() { _loading = true; _error = null; _page = 0; _hasMore = true; });
     final results = await Future.wait([
-      WorkoutService.getWorkoutsByCoach(widget.coachId),
-      AthleteService.getAthletesByCoach(widget.coachId),
+      WorkoutService.getWorkoutsByCoach(widget.coachId, page: 0),
+      AthleteService.getAthletesByCoach(widget.coachId, size: 100),
     ]);
     if (!mounted) return;
     final workoutsResult = results[0];
@@ -221,10 +289,28 @@ class _WorkoutsTabState extends State<_WorkoutsTab> {
       setState(() {
         _workouts = workoutsResult.data ?? [];
         _athletes = athletesResult.isSuccess ? (athletesResult.data ?? []) : [];
+        _hasMore = !workoutsResult.isLastPage;
+        _page = 1;
         _loading = false;
       });
     } else {
       setState(() { _loading = false; _error = workoutsResult.errorMessage; });
+    }
+  }
+
+  Future<void> _loadMore() async {
+    setState(() => _loadingMore = true);
+    final result = await WorkoutService.getWorkoutsByCoach(widget.coachId, page: _page);
+    if (!mounted) return;
+    if (result.isSuccess) {
+      setState(() {
+        _workouts.addAll(result.data ?? []);
+        _hasMore = !result.isLastPage;
+        _page++;
+        _loadingMore = false;
+      });
+    } else {
+      setState(() => _loadingMore = false);
     }
   }
 
@@ -304,9 +390,16 @@ class _WorkoutsTabState extends State<_WorkoutsTab> {
           : RefreshIndicator(
               onRefresh: _load,
               child: ListView.builder(
+                controller: _scrollController,
                 padding: const EdgeInsets.all(16),
-                itemCount: _workouts.length,
+                itemCount: _workouts.length + (_loadingMore ? 1 : 0),
                 itemBuilder: (_, i) {
+                  if (i == _workouts.length) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
                   final w = _workouts[i];
                   return Card(
                     child: ListTile(

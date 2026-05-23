@@ -11,11 +11,20 @@ class AthleteService {
     return ApiResult(statusCode: res.statusCode);
   }
 
-  static Future<ApiResult<List<dynamic>>> getAthletesByCoach(int coachId) async {
-    final res = await ApiClient.get('${ApiClient.baseUrl}/athletes?coachId=$coachId&size=100');
+  static Future<ApiResult<List<dynamic>>> getAthletesByCoach(
+    int coachId, {
+    int page = 0,
+    int size = 20,
+  }) async {
+    final res = await ApiClient.get(
+        '${ApiClient.baseUrl}/athletes?coachId=$coachId&page=$page&size=$size');
     if (res.statusCode == 200) {
       final body = jsonDecode(res.body) as Map<String, dynamic>;
-      return ApiResult(data: body['content'] as List<dynamic>, statusCode: 200);
+      return ApiResult(
+        data: body['content'] as List<dynamic>,
+        statusCode: 200,
+        isLastPage: body['last'] as bool? ?? true,
+      );
     }
     return ApiResult(statusCode: res.statusCode);
   }

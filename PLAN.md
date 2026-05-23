@@ -37,6 +37,7 @@ Updated whenever a phase is completed or started.
   - Dashboard: `GET /api/dashboard/athlete/{id}` verifies ownership
 - [x] `GlobalExceptionHandler` converts service-layer `AccessDeniedException` → 403
 - [x] Credentials via environment variables (`.env`, not committed)
+- [x] **CORS restricted** — `ALLOWED_ORIGINS` environment variable controls allowed origins; restricted to `https://ajenux.github.io` in production
 
 ### Features
 - [x] Workout CRUD with pagination (`Page<WorkoutResponse>`)
@@ -77,7 +78,6 @@ Updated whenever a phase is completed or started.
 ## Pending / Next steps
 
 ### CRITICAL — Security (fix before going public)
-- [ ] **[CRITICAL] CORS cerrado** — actualmente `allowedOrigins("*")` con `allowCredentials=true`. Restringir a `https://ajenux.github.io` en producción. Cualquier sitio puede hacer requests a la API.
 - [ ] **[CRITICAL] Rate limiting en login** — sin límite de intentos, el endpoint `/api/auth/login` es vulnerable a fuerza bruta. Agregar Bucket4j o similar.
 
 ### High priority
@@ -111,3 +111,4 @@ Updated whenever a phase is completed or started.
 | GitHub Pages for Flutter web | Switched from Netlify to GitHub Pages for simpler CI/CD integration via GitHub Actions |
 | Google Sheets Service Account | Sheet is private and owned by the coach — service account (`crossfit-sheets@crossfit-app-496502.iam.gserviceaccount.com`) is the correct auth pattern for server-to-server access without OAuth |
 | A/F weight notation in sheet | A = Ale (male athlete), F = Fabi (female athlete) — same program, different weights. Import will generate two workouts per day automatically |
+| `ALLOWED_ORIGINS` env var for CORS | Restricts API access to known frontend origins without hardcoding URLs; set to `https://ajenux.github.io` in Railway production |

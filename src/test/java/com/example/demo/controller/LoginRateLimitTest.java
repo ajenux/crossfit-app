@@ -12,7 +12,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -21,12 +20,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-class AuthControllerTest {
+class LoginRateLimitTest {
 
     @Autowired MockMvc mockMvc;
     @Autowired LoginRateLimitFilter rateLimitFilter;
@@ -44,34 +43,24 @@ class AuthControllerTest {
     }
 
     @Test
-    void register_returnsTokenRoleAndProfileId() throws Exception {
-        when(authService.register(any()))
-                .thenReturn(new AuthResponse("tok123", "refresh123", "ATHLETE", 5L));
+    void login_blockedAfterFiveAttempts() throws Exception {
+        when(authService.login(any())).thenReturn(new AuthResponse("tok", "refresh", "ATHLETE", 1L));
 
-        mockMvc.perform(post("/api/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                            {"name":"Maria","email":"maria@x.com","password":"password123","role":"ATHLETE"}
-                        """))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").value("tok123"))
-                .andExpect(jsonPath("$.role").value("ATHLETE"))
-                .andExpect(jsonPath("$.profileId").value(5));
-    }
+        String body = """
+                {"email":"test@x.com","password":"password123"}
+                """;
 
-    @Test
-    void login_validCredentials_returnsToken() throws Exception {
-        when(authService.login(any()))
-                .thenReturn(new AuthResponse("tok456", "refresh456", "COACH", 2L));
+        for (int i = 0; i < 5; i++) {
+            mockMvc.perform(post("/api/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                    .andExpect(status().isOk());
+        }
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                            {"email":"juan@x.com","password":"password123"}
-                        """))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").value("tok456"))
-                .andExpect(jsonPath("$.role").value("COACH"))
-                .andExpect(jsonPath("$.profileId").value(2));
+                        .content(body))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().string("Retry-After", "60"));
     }
 }

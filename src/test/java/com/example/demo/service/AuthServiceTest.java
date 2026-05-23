@@ -3,6 +3,7 @@ package com.example.demo.service;
 import com.example.demo.dto.RegisterRequest;
 import com.example.demo.model.Athlete;
 import com.example.demo.model.Coach;
+import com.example.demo.model.RefreshToken;
 import com.example.demo.model.Role;
 import com.example.demo.model.User;
 import com.example.demo.repository.AthleteRepository;
@@ -35,6 +36,7 @@ class AuthServiceTest {
     @Mock PasswordEncoder passwordEncoder;
     @Mock JwtService jwtService;
     @Mock AuthenticationManager authenticationManager;
+    @Mock RefreshTokenService refreshTokenService;
 
     @InjectMocks AuthService authService;
 
@@ -65,6 +67,9 @@ class AuthServiceTest {
         savedAthlete.setId(5L);
         when(athleteRepository.save(any())).thenReturn(savedAthlete);
         when(jwtService.generateToken(any())).thenReturn("token123");
+        RefreshToken rt = new RefreshToken();
+        rt.setToken("refresh123");
+        when(refreshTokenService.createRefreshToken(any())).thenReturn(rt);
 
         var response = authService.register(athleteRequest);
 
@@ -82,6 +87,9 @@ class AuthServiceTest {
         savedCoach.setId(3L);
         when(coachRepository.save(any())).thenReturn(savedCoach);
         when(jwtService.generateToken(any())).thenReturn("token456");
+        RefreshToken rt = new RefreshToken();
+        rt.setToken("refresh456");
+        when(refreshTokenService.createRefreshToken(any())).thenReturn(rt);
 
         var response = authService.register(coachRequest);
 
@@ -111,6 +119,9 @@ class AuthServiceTest {
         when(userRepository.findByEmail("maria@crossfit.com")).thenReturn(Optional.of(user));
         when(athleteRepository.findByUser(user)).thenReturn(Optional.of(athlete));
         when(jwtService.generateToken(user)).thenReturn("logintoken");
+        RefreshToken rt = new RefreshToken();
+        rt.setToken("refreshlogin");
+        when(refreshTokenService.createRefreshToken(any())).thenReturn(rt);
 
         var loginRequest = new com.example.demo.dto.LoginRequest();
         loginRequest.setEmail("maria@crossfit.com");

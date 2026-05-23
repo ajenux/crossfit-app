@@ -28,6 +28,7 @@ Updated whenever a phase is completed or started.
 - [x] Registration automatically creates profile (Athlete or Coach based on role)
 - [x] Login returns `{token, role, profileId}` — Flutter uses real profileId, not hardcoded
 - [x] Flutter navigates to the correct dashboard based on role received at login/register
+- [x] **JWT refresh token** — access token reduced to 1h, refresh token expires in 7 days
 
 ### Security
 - [x] Roles: `ATHLETE`, `COACH`
@@ -73,6 +74,7 @@ Updated whenever a phase is completed or started.
 - [x] Pre-push hook runs `update-plan.sh` to keep `PLAN.md` current before every push
 - [x] Fix `update-plan.sh` to strip Claude explanation text from output
 - [x] Fix pre-push hook to amend last commit instead of creating a new one
+- [x] Remove auto-commit from pre-push hook
 - [x] **Flutter: _ErrorView logout button** — added Logout option to error screens so users are not stuck in a retry loop on 403 errors
 - [x] **Flutter: Athletes tab FAB fix** — FAB now visible even when the athlete list is empty, so coaches can assign athletes without needing existing entries
 - [x] **Input validation** — `@Valid` / `@NotNull` added to all request DTOs and controllers
@@ -96,7 +98,6 @@ Updated whenever a phase is completed or started.
 - [ ] **Push notifications** — alert athlete when a workout is assigned
 - [ ] **Athlete progress** — history of completed vs pending workouts
 - [ ] **Better AI** — more capable models or surface AI results directly in the dashboard
-- [ ] **Refresh token** — JWT expires with no renewal mechanism, requires re-login
 
 ---
 
@@ -117,3 +118,4 @@ Updated whenever a phase is completed or started.
 | Configurable AI provider | Anthropic (Claude) used in production for better quality; Ollama used locally to avoid API costs during development — switched via environment variable |
 | Split `ApiService` into feature-specific services | God class with mixed responsibilities made it hard to maintain and test; split into focused services per feature domain |
 | Pre-push hook amends last commit | Amending instead of creating a new commit keeps PLAN.md updates atomic with the triggering commit, avoiding extra noise in git history |
+| JWT refresh token (access 1h / refresh 7d) | Short-lived access tokens limit exposure if intercepted; refresh token allows seamless renewal without requiring re-login |

@@ -55,8 +55,8 @@ Updated whenever a phase is completed or started.
   - Service Account: `crossfit-sheets@crossfit-app-496502.iam.gserviceaccount.com`
   - `GOOGLE_CREDENTIALS_JSON` configured in Railway and in `.env` local
   - Endpoints: `GET /api/sheets/weeks`, `POST /api/sheets/import`
-  - Flutter: tab "Import" in coach dashboard — select week, Athlete A (heavy weights), Athlete B (light weights), start date
-  - Weights `(X/Y)` are automatically split per athlete
+  - Flutter: tab "Import" in coach dashboard — select week, N athletes with configurable weight index, start date
+  - Weights `(X/Y/...)` are automatically split per athlete based on configurable weight column index
 
 ### Quality
 - [x] 16 automated tests (4 service unit tests + 12 controller integration tests)
@@ -110,5 +110,5 @@ Updated whenever a phase is completed or started.
 | Railway for backend deployment | Chosen for zero-config PostgreSQL add-on and simple Spring Boot deploy via `railway.toml` |
 | GitHub Pages for Flutter web | Switched from Netlify to GitHub Pages for simpler CI/CD integration via GitHub Actions |
 | Google Sheets Service Account | Sheet is private and owned by the coach — service account (`crossfit-sheets@crossfit-app-496502.iam.gserviceaccount.com`) is the correct auth pattern for server-to-server access without OAuth |
-| A/F weight notation in sheet | A = Ale (male athlete), F = Fabi (female athlete) — same program, different weights. Import will generate two workouts per day automatically |
+| Configurable weight index for Sheets import | Refactored from hardcoded two-athlete (A/F) split to support N athletes with a per-athlete configurable weight column index — same program, different weights per athlete |
 | `ALLOWED_ORIGINS` env var for CORS | Restricts API access to known frontend origins without hardcoding URLs; set to `https://ajenux.github.io` in Railway production |

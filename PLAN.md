@@ -7,7 +7,7 @@ Updated whenever a phase is completed or started.
 
 ## Current status
 **Active branch:** `develop`
-**Last updated:** 2026-05-23 (session 2)
+**Last updated:** 2026-05-23 (session 3)
 **Production:**
 - Backend: `https://crossfit-app-production-fcf2.up.railway.app` (Railway + PostgreSQL)
 - Frontend: `https://ajenux.github.io/crossfit-app` (GitHub Pages, auto-deploy on push to master)
@@ -82,13 +82,13 @@ Updated whenever a phase is completed or started.
 - [x] **Flutter: infinite scroll pagination** — Athletes and Workouts tabs load pages of 20; `ScrollController` fetches next page 200px before bottom; pull-to-refresh resets to page 0
 - [x] **Flutter tests** — 16 tests: 4 widget tests (login screen render, invalid credentials, network error, navigation) + 12 service unit tests (`AthleteService`, `WorkoutService`) via injectable `MockClient`
 - [x] **Fix broken tests after JWT refresh** — `AuthServiceTest` (missing `@Mock RefreshTokenService`) and `AuthControllerTest` (`AuthResponse` constructor mismatch) repaired
+- [x] **In-app notifications** — bell icon with unread badge on athlete dashboard; `Notification` entity + `GET /api/notifications` + `PUT /api/notifications/read`; `WorkoutService.create()` fires notification on assignment; bulk Sheets import does not trigger per-workout notifications
 
 ---
 
 ## Pending / Next steps
 
 ### Low priority / Future ideas
-- [ ] **Push notifications** — alert athlete when a workout is assigned
 - [ ] **Athlete progress** — history of completed vs pending workouts
 - [ ] **Better AI** — more capable models or surface AI results directly in the dashboard
 

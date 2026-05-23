@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'api_client.dart';
 
 class AuthService {
@@ -42,12 +41,26 @@ class AuthService {
     }
   }
 
-  static Future<void> _saveSession(Map<String, dynamic> body) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('token', body['token']);
-    await prefs.setString('role', body['role']);
-    if (body['profileId'] != null) {
-      await prefs.setInt('profileId', body['profileId']);
+  static Future<void> logout() async {
+    final refreshToken = await ApiClient.getRefreshToken();
+    if (refreshToken != null) {
+      try {
+        await http.post(
+          Uri.parse('${ApiClient.baseUrl}/auth/logout'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'refreshToken': refreshToken}),
+        );
+      } catch (_) {}
     }
+    await ApiClient.clearToken();
+  }
+
+  static Future<void> _saveSession(Map<String, dynamic> body) async {
+    await ApiClient.saveTokens(
+      token: body['token'],
+      refreshToken: body['refreshToken'] ?? '',
+      role: body['role'],
+      profileId: body['profileId'],
+    );
   }
 }

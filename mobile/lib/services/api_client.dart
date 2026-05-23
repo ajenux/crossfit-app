@@ -6,8 +6,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ApiResult<T> {
   final T? data;
   final int statusCode;
+  final bool isLastPage;
 
-  const ApiResult({this.data, required this.statusCode});
+  const ApiResult({this.data, required this.statusCode, this.isLastPage = true});
 
   bool get isSuccess => statusCode >= 200 && statusCode < 300;
   bool get isUnauthorized => statusCode == 401;

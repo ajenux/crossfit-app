@@ -1,12 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:http/http.dart' as http;
 import 'api_client.dart';
 
 class AuthService {
   static Future<ApiResult<Map<String, dynamic>>> login(String email, String password) async {
     try {
-      final res = await http.post(
+      final res = await ApiClient.httpClient.post(
         Uri.parse('${ApiClient.baseUrl}/auth/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email, 'password': password}),
@@ -25,7 +24,7 @@ class AuthService {
   static Future<ApiResult<Map<String, dynamic>>> register(
       String name, String email, String password, String role) async {
     try {
-      final res = await http.post(
+      final res = await ApiClient.httpClient.post(
         Uri.parse('${ApiClient.baseUrl}/auth/register'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'name': name, 'email': email, 'password': password, 'role': role}),
@@ -45,7 +44,7 @@ class AuthService {
     final refreshToken = await ApiClient.getRefreshToken();
     if (refreshToken != null) {
       try {
-        await http.post(
+        await ApiClient.httpClient.post(
           Uri.parse('${ApiClient.baseUrl}/auth/logout'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({'refreshToken': refreshToken}),

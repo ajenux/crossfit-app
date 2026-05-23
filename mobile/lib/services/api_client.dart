@@ -32,6 +32,9 @@ class ApiClient {
     defaultValue: 'http://10.0.2.2:8080/api',
   );
 
+  // Replaceable in tests via ApiClient.httpClient = MockClient(...)
+  static http.Client httpClient = http.Client();
+
   // ── Token storage ─────────────────────────────────────────────────────────
 
   static Future<String?> getToken() async {
@@ -87,10 +90,10 @@ class ApiClient {
 
   static Future<http.Response> get(String url) async {
     try {
-      var res = await http.get(Uri.parse(url), headers: await authHeaders());
+      var res = await httpClient.get(Uri.parse(url), headers: await authHeaders());
       if (res.statusCode == 401) {
         if (await _tryRefresh()) {
-          res = await http.get(Uri.parse(url), headers: await authHeaders());
+          res = await httpClient.get(Uri.parse(url), headers: await authHeaders());
         }
       }
       return res;
@@ -101,11 +104,11 @@ class ApiClient {
 
   static Future<http.Response> post(String url, {Object? body}) async {
     try {
-      var res = await http.post(Uri.parse(url),
+      var res = await httpClient.post(Uri.parse(url),
           headers: await authHeaders(), body: body != null ? jsonEncode(body) : null);
       if (res.statusCode == 401) {
         if (await _tryRefresh()) {
-          res = await http.post(Uri.parse(url),
+          res = await httpClient.post(Uri.parse(url),
               headers: await authHeaders(), body: body != null ? jsonEncode(body) : null);
         }
       }
@@ -117,11 +120,11 @@ class ApiClient {
 
   static Future<http.Response> put(String url, {Object? body}) async {
     try {
-      var res = await http.put(Uri.parse(url),
+      var res = await httpClient.put(Uri.parse(url),
           headers: await authHeaders(), body: body != null ? jsonEncode(body) : null);
       if (res.statusCode == 401) {
         if (await _tryRefresh()) {
-          res = await http.put(Uri.parse(url),
+          res = await httpClient.put(Uri.parse(url),
               headers: await authHeaders(), body: body != null ? jsonEncode(body) : null);
         }
       }
@@ -133,10 +136,10 @@ class ApiClient {
 
   static Future<http.Response> delete(String url) async {
     try {
-      var res = await http.delete(Uri.parse(url), headers: await authHeaders());
+      var res = await httpClient.delete(Uri.parse(url), headers: await authHeaders());
       if (res.statusCode == 401) {
         if (await _tryRefresh()) {
-          res = await http.delete(Uri.parse(url), headers: await authHeaders());
+          res = await httpClient.delete(Uri.parse(url), headers: await authHeaders());
         }
       }
       return res;
@@ -150,7 +153,7 @@ class ApiClient {
     final refreshToken = await getRefreshToken();
     if (refreshToken == null) return false;
     try {
-      final res = await http.post(
+      final res = await httpClient.post(
         Uri.parse('$baseUrl/auth/refresh'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'refreshToken': refreshToken}),

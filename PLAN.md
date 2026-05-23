@@ -7,7 +7,7 @@ Updated whenever a phase is completed or started.
 
 ## Current status
 **Active branch:** `develop`
-**Last updated:** 2026-05-23
+**Last updated:** 2026-05-23 (session 2)
 **Production:**
 - Backend: `https://crossfit-app-production-fcf2.up.railway.app` (Railway + PostgreSQL)
 - Frontend: `https://ajenux.github.io/crossfit-app` (GitHub Pages, auto-deploy on push to master)
@@ -78,21 +78,14 @@ Updated whenever a phase is completed or started.
 - [x] **Flutter: _ErrorView logout button** — added Logout option to error screens so users are not stuck in a retry loop on 403 errors
 - [x] **Flutter: Athletes tab FAB fix** — FAB now visible even when the athlete list is empty, so coaches can assign athletes without needing existing entries
 - [x] **Input validation** — `@Valid` / `@NotNull` added to all request DTOs and controllers
+- [x] **Rate limiting on login** — Bucket4j, 5 attempts/min per IP, returns 429 + `Retry-After: 60`; respects `X-Forwarded-For` for Railway proxy
+- [x] **Flutter: infinite scroll pagination** — Athletes and Workouts tabs load pages of 20; `ScrollController` fetches next page 200px before bottom; pull-to-refresh resets to page 0
+- [x] **Flutter tests** — 16 tests: 4 widget tests (login screen render, invalid credentials, network error, navigation) + 12 service unit tests (`AthleteService`, `WorkoutService`) via injectable `MockClient`
+- [x] **Fix broken tests after JWT refresh** — `AuthServiceTest` (missing `@Mock RefreshTokenService`) and `AuthControllerTest` (`AuthResponse` constructor mismatch) repaired
 
 ---
 
 ## Pending / Next steps
-
-### CRITICAL — Security (fix before going public)
-- [ ] **[CRITICAL] Rate limiting en login** — sin límite de intentos, el endpoint `/api/auth/login` es vulnerable a fuerza bruta. Agregar Bucket4j o similar.
-
-### High priority
-- [ ] **Flutter: pagination** — backend paginates but Flutter loads everything with no infinite scroll
-- [ ] **Flutter tests** — only backend is tested
-
-### Medium priority
-- [ ] **Flutter: pagination** — backend paginates but Flutter loads everything with no infinite scroll
-- [ ] **Flutter tests** — only backend is tested
 
 ### Low priority / Future ideas
 - [ ] **Push notifications** — alert athlete when a workout is assigned
@@ -119,3 +112,5 @@ Updated whenever a phase is completed or started.
 | Split `ApiService` into feature-specific services | God class with mixed responsibilities made it hard to maintain and test; split into focused services per feature domain |
 | Pre-push hook amends last commit | Amending instead of creating a new commit keeps PLAN.md updates atomic with the triggering commit, avoiding extra noise in git history |
 | JWT refresh token (access 1h / refresh 7d) | Short-lived access tokens limit exposure if intercepted; refresh token allows seamless renewal without requiring re-login |
+| `ApiClient.httpClient` injectable for tests | Static `http.Client` field replaceable with `MockClient` in tests — avoids DI framework overhead while enabling full HTTP-level test isolation for Flutter services |
+| Bucket4j in-memory rate limiting | No Redis required for Railway deployment; `ConcurrentHashMap<IP, Bucket>` is sufficient for single-instance backend; `clearBuckets()` method enables test isolation |

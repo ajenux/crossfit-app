@@ -1,25 +1,20 @@
 package com.example.demo.service;
 
-import dev.langchain4j.model.ollama.OllamaChatModel;
+import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class AiService {
 
-    private final OllamaChatModel model;
-
-    public AiService() {
-        this.model = OllamaChatModel.builder()
-                .baseUrl("http://localhost:11434")
-                .modelName("llama3.2")
-                .build();
-    }
+    private final ChatLanguageModel model;
 
     public String generateWorkoutDescription(String name, String type) {
         ChatRequest request = ChatRequest.builder()
@@ -32,9 +27,7 @@ public class AiService {
                         UserMessage.from("Generate a description for a CrossFit workout named '" + name + "' of type " + type + ".")
                 ))
                 .build();
-
-        ChatResponse response = model.chat(request);
-        return response.aiMessage().text();
+        return chat(request);
     }
 
     public String explainExercise(String exerciseName) {
@@ -50,9 +43,7 @@ public class AiService {
                         UserMessage.from("Explain the exercise: " + exerciseName)
                 ))
                 .build();
-
-        ChatResponse response = model.chat(request);
-        return response.aiMessage().text();
+        return chat(request);
     }
 
     public String explain(String question) {
@@ -67,8 +58,21 @@ public class AiService {
                         UserMessage.from(question)
                 ))
                 .build();
+        return chat(request);
+    }
 
-        ChatResponse response = model.chat(request);
-        return response.aiMessage().text();
+    private String chat(ChatRequest request) {
+        try {
+            ChatResponse response = model.chat(request);
+            return response.aiMessage().text();
+        } catch (Exception e) {
+            throw new AiUnavailableException("AI service is currently unavailable", e);
+        }
+    }
+
+    public static class AiUnavailableException extends RuntimeException {
+        public AiUnavailableException(String message, Throwable cause) {
+            super(message, cause);
+        }
     }
 }

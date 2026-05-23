@@ -682,8 +682,8 @@ class _ImportTabState extends State<_ImportTab> {
   String? _error;
 
   dynamic _selectedWeek;
-  dynamic _athleteA;
-  dynamic _athleteB;
+  // Each entry: {'athlete': obj, 'weightIndex': 0 (heavy) | 1 (light)}
+  List<Map<String, dynamic>> _selectedAthletes = [];
   DateTime _startDate = DateTime.now();
   bool _importing = false;
 
@@ -719,21 +719,25 @@ class _ImportTabState extends State<_ImportTab> {
       _weeks = weeks;
       _athletes = athletes;
       _selectedWeek = weeks.isNotEmpty ? weeks.first : null;
-      _athleteA = athletes.isNotEmpty ? athletes.first : null;
-      _athleteB = athletes.length > 1 ? athletes[1] : (athletes.isNotEmpty ? athletes.first : null);
+      _selectedAthletes = [
+        if (athletes.isNotEmpty) {'athlete': athletes.first, 'weightIndex': 0},
+        if (athletes.length > 1) {'athlete': athletes[1], 'weightIndex': 1},
+      ];
       _loading = false;
     });
   }
 
   Future<void> _import() async {
-    if (_selectedWeek == null || _athleteA == null || _athleteB == null) return;
+    if (_selectedWeek == null || _selectedAthletes.isEmpty) return;
     setState(() => _importing = true);
     final result = await ApiService.importSheetWeek({
       'weekNumber': _selectedWeek['weekNumber'],
-      'athleteAId': _athleteA['id'],
-      'athleteBId': _athleteB['id'],
       'coachId': widget.coachId,
       'startDate': _startDate.toIso8601String().split('T').first,
+      'athletes': _selectedAthletes.map((e) => {
+        'athleteId': e['athlete']['id'],
+        'weightIndex': e['weightIndex'],
+      }).toList(),
     });
     if (!mounted) return;
     setState(() => _importing = false);
@@ -799,25 +803,54 @@ class _ImportTabState extends State<_ImportTab> {
             onChanged: (v) => setState(() => _selectedWeek = v),
           ),
           const SizedBox(height: 16),
-          DropdownButtonFormField<dynamic>(
-            value: _athleteA,
-            decoration: const InputDecoration(
-              labelText: 'Athlete A (heavier weights)',
-              border: OutlineInputBorder(),
-            ),
-            items: _athletes.map((a) => DropdownMenuItem(value: a, child: Text(a['name']))).toList(),
-            onChanged: (v) => setState(() => _athleteA = v),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Athletes', style: TextStyle(fontWeight: FontWeight.w600)),
+              TextButton.icon(
+                onPressed: _athletes.isEmpty ? null : () {
+                  setState(() => _selectedAthletes.add({
+                    'athlete': _athletes.first,
+                    'weightIndex': 0,
+                  }));
+                },
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Add athlete'),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          DropdownButtonFormField<dynamic>(
-            value: _athleteB,
-            decoration: const InputDecoration(
-              labelText: 'Athlete B (lighter weights)',
-              border: OutlineInputBorder(),
-            ),
-            items: _athletes.map((a) => DropdownMenuItem(value: a, child: Text(a['name']))).toList(),
-            onChanged: (v) => setState(() => _athleteB = v),
-          ),
+          ..._selectedAthletes.asMap().entries.map((entry) {
+            final i = entry.key;
+            final sel = entry.value;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<dynamic>(
+                      value: sel['athlete'],
+                      decoration: const InputDecoration(border: OutlineInputBorder()),
+                      items: _athletes.map((a) => DropdownMenuItem(value: a, child: Text(a['name']))).toList(),
+                      onChanged: (v) => setState(() => _selectedAthletes[i]['athlete'] = v),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  DropdownButton<int>(
+                    value: sel['weightIndex'] as int,
+                    items: const [
+                      DropdownMenuItem(value: 0, child: Text('Heavy')),
+                      DropdownMenuItem(value: 1, child: Text('Light')),
+                    ],
+                    onChanged: (v) => setState(() => _selectedAthletes[i]['weightIndex'] = v),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+                    onPressed: () => setState(() => _selectedAthletes.removeAt(i)),
+                  ),
+                ],
+              ),
+            );
+          }),
           const SizedBox(height: 16),
           ListTile(
             contentPadding: EdgeInsets.zero,

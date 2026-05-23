@@ -7,7 +7,7 @@ Updated whenever a phase is completed or started.
 
 ## Current status
 **Active branch:** `develop`
-**Last updated:** 2026-05-16
+**Last updated:** 2026-05-22
 **Production:**
 - Backend: `https://crossfit-app-production-fcf2.up.railway.app` (Railway + PostgreSQL)
 - Frontend: `https://ajenux.github.io/crossfit-app` (GitHub Pages, auto-deploy on push to master)
@@ -49,6 +49,13 @@ Updated whenever a phase is completed or started.
 - [x] Flutter coach dashboard — Athletes tab (list + assign), Workouts tab (create + delete), Availability tab (add + delete)
 - [x] Assign coach to athlete from UI — FloatingActionButton in Athletes tab
 - [x] Deploy — Railway backend + Flutter web pipeline via GitHub Pages with demo environment
+- [x] **Google Sheets integration** — imports training plans from coach's sheet and assigns them automatically
+  - Sheet ID: `1LUksfUebyzp2ZeplLAFEmOlvwbgBOOlw25JU7ivbUgk`
+  - Service Account: `crossfit-sheets@crossfit-app-496502.iam.gserviceaccount.com`
+  - `GOOGLE_CREDENTIALS_JSON` configured in Railway and in `.env` local
+  - Endpoints: `GET /api/sheets/weeks`, `POST /api/sheets/import`
+  - Flutter: tab "Import" in coach dashboard — select week, Athlete A (heavy weights), Athlete B (light weights), start date
+  - Weights `(X/Y)` are automatically split per athlete
 
 ### Quality
 - [x] 16 automated tests (4 service unit tests + 12 controller integration tests)
@@ -74,13 +81,9 @@ Updated whenever a phase is completed or started.
 - [ ] **[CRITICAL] Rate limiting en login** — sin límite de intentos, el endpoint `/api/auth/login` es vulnerable a fuerza bruta. Agregar Bucket4j o similar.
 
 ### High priority
-- [x] **Google Sheets integration** — importa planes de entrenamiento desde el sheet del profe y los asigna automáticamente
-  - Sheet ID: `1LUksfUebyzp2ZeplLAFEmOlvwbgBOOlw25JU7ivbUgk`
-  - Service Account: `crossfit-sheets@crossfit-app-496502.iam.gserviceaccount.com`
-  - `GOOGLE_CREDENTIALS_JSON` configurado en Railway y en `.env` local
-  - Endpoints: `GET /api/sheets/weeks`, `POST /api/sheets/import`
-  - Flutter: tab "Import" en coach dashboard — selecciona semana, Atleta A (pesos altos), Atleta B (pesos bajos), fecha inicio
-  - Los pesos `(X/Y)` se separan automáticamente por atleta
+- [ ] **Flutter: pagination** — backend paginates but Flutter loads everything with no infinite scroll
+- [ ] **Input validation** — no `@Valid` / `@NotNull` on incoming DTOs
+- [ ] **Flutter tests** — only backend is tested
 
 ### Medium priority
 - [ ] **Flutter: pagination** — backend paginates but Flutter loads everything with no infinite scroll

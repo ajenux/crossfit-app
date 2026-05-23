@@ -7,7 +7,7 @@ Updated whenever a phase is completed or started.
 
 ## Current status
 **Active branch:** `develop`
-**Last updated:** 2026-05-22
+**Last updated:** 2026-05-23
 **Production:**
 - Backend: `https://crossfit-app-production-fcf2.up.railway.app` (Railway + PostgreSQL)
 - Frontend: `https://ajenux.github.io/crossfit-app` (GitHub Pages, auto-deploy on push to master)
@@ -67,6 +67,7 @@ Updated whenever a phase is completed or started.
 - [x] Fix missing `ApiService` import in `mobile/lib/main.dart`
 - [x] `ARCHITECTURE.md` added with full system documentation
 - [x] `ApiService` refactored to use typed `ApiResult` and improved error handling
+- [x] **ApiService split** — god class broken into feature-specific services
 - [x] AI-assisted commit message hook (`prepare-commit-msg`) via Ollama
 - [x] `CLAUDE.md` added with project instructions for Claude
 - [x] Pre-push hook runs `update-plan.sh` to keep `PLAN.md` current before every push
@@ -113,3 +114,4 @@ Updated whenever a phase is completed or started.
 | Configurable weight index for Sheets import | Refactored from hardcoded two-athlete (A/F) split to support N athletes with a per-athlete configurable weight column index — same program, different weights per athlete |
 | `ALLOWED_ORIGINS` env var for CORS | Restricts API access to known frontend origins without hardcoding URLs; set to `https://ajenux.github.io` in Railway production |
 | Configurable AI provider | Anthropic (Claude) used in production for better quality; Ollama used locally to avoid API costs during development — switched via environment variable |
+| Split `ApiService` into feature-specific services | God class with mixed responsibilities made it hard to maintain and test; split into focused services per feature domain |

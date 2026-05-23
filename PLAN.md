@@ -57,6 +57,7 @@ Updated whenever a phase is completed or started.
   - Endpoints: `GET /api/sheets/weeks`, `POST /api/sheets/import`
   - Flutter: tab "Import" in coach dashboard — select week, N athletes with configurable weight index, start date
   - Weights `(X/Y/...)` are automatically split per athlete based on configurable weight column index
+- [x] **AI provider configurable** — Anthropic (Claude) in production, Ollama in local development; switched via environment variable
 
 ### Quality
 - [x] 16 automated tests (4 service unit tests + 12 controller integration tests)
@@ -112,3 +113,4 @@ Updated whenever a phase is completed or started.
 | Google Sheets Service Account | Sheet is private and owned by the coach — service account (`crossfit-sheets@crossfit-app-496502.iam.gserviceaccount.com`) is the correct auth pattern for server-to-server access without OAuth |
 | Configurable weight index for Sheets import | Refactored from hardcoded two-athlete (A/F) split to support N athletes with a per-athlete configurable weight column index — same program, different weights per athlete |
 | `ALLOWED_ORIGINS` env var for CORS | Restricts API access to known frontend origins without hardcoding URLs; set to `https://ajenux.github.io` in Railway production |
+| Configurable AI provider | Anthropic (Claude) used in production for better quality; Ollama used locally to avoid API costs during development — switched via environment variable |

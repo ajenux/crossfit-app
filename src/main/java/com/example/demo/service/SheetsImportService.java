@@ -47,10 +47,6 @@ public class SheetsImportService {
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Week " + request.getWeekNumber() + " not found"));
 
-        Athlete athleteA = athleteRepository.findById(request.getAthleteAId())
-                .orElseThrow(() -> new RuntimeException("Athlete not found: " + request.getAthleteAId()));
-        Athlete athleteB = athleteRepository.findById(request.getAthleteBId())
-                .orElseThrow(() -> new RuntimeException("Athlete not found: " + request.getAthleteBId()));
         Coach coach = coachRepository.findById(request.getCoachId())
                 .orElseThrow(() -> new RuntimeException("Coach not found: " + request.getCoachId()));
 
@@ -62,17 +58,15 @@ public class SheetsImportService {
             LocalDate date = request.getStartDate().plusDays(dayNum - 1);
             WorkoutType type = detectType(raw);
 
-            Workout wA = buildWorkout(
-                    "S" + request.getWeekNumber() + "-D" + dayNum + " " + athleteA.getName(),
-                    applyWeights(raw, true), type, date, athleteA, coach);
-            workoutRepository.save(wA);
-            createdNames.add(wA.getName());
-
-            Workout wB = buildWorkout(
-                    "S" + request.getWeekNumber() + "-D" + dayNum + " " + athleteB.getName(),
-                    applyWeights(raw, false), type, date, athleteB, coach);
-            workoutRepository.save(wB);
-            createdNames.add(wB.getName());
+            for (SheetsImportRequest.AthleteImport athleteImport : request.getAthletes()) {
+                Athlete athlete = athleteRepository.findById(athleteImport.getAthleteId())
+                        .orElseThrow(() -> new RuntimeException("Athlete not found: " + athleteImport.getAthleteId()));
+                Workout w = buildWorkout(
+                        "S" + request.getWeekNumber() + "-D" + dayNum + " " + athlete.getName(),
+                        applyWeights(raw, athleteImport.getWeightIndex()), type, date, athlete, coach);
+                workoutRepository.save(w);
+                createdNames.add(w.getName());
+            }
         }
 
         return new SheetsImportResponse(request.getWeekNumber(), createdNames.size(), createdNames);
@@ -90,11 +84,9 @@ public class SheetsImportService {
         return w;
     }
 
-    // For athlete A (male/heavier): keep first weight in (X/Y) → (X)
-    // For athlete B (female/lighter): keep second weight → (Y)
-    private String applyWeights(String content, boolean useMale) {
+    private String applyWeights(String content, int weightIndex) {
         return WEIGHT_PATTERN.matcher(content)
-                .replaceAll(m -> "(" + (useMale ? m.group(1) : m.group(2)) + ")");
+                .replaceAll(m -> "(" + (weightIndex == 0 ? m.group(1) : m.group(2)) + ")");
     }
 
     private WorkoutType detectType(String content) {

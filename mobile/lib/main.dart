@@ -5,7 +5,7 @@ import 'screens/auth/register_screen.dart';
 import 'screens/athlete/athlete_dashboard_screen.dart';
 import 'screens/athlete/exercise_assistant_screen.dart';
 import 'screens/coach/coach_dashboard_screen.dart';
-import 'services/api_service.dart';
+import 'services/api_client.dart';
 
 // Injected at build time: flutter build web --dart-define=DEMO_MODE=true
 const bool kDemoMode = bool.fromEnvironment('DEMO_MODE', defaultValue: false);
@@ -15,9 +15,9 @@ void main() => runApp(const CrossFitApp());
 final _router = GoRouter(
   initialLocation: '/login',
   redirect: (context, state) async {
-    final token = await ApiService.getToken();
-    final role = await ApiService.getRole();
-    final profileId = await ApiService.getProfileId();
+    final token = await ApiClient.getToken();
+    final role = await ApiClient.getRole();
+    final profileId = await ApiClient.getProfileId();
 
     final isLoggedIn = token != null && profileId != null;
     final isAuthRoute = state.matchedLocation == '/login' ||

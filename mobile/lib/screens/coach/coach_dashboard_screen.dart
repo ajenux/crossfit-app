@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../services/api_service.dart';
+import '../../services/api_client.dart';
+import '../../services/athlete_service.dart';
+import '../../services/workout_service.dart';
+import '../../services/availability_service.dart';
+import '../../services/sheets_service.dart';
 
 class CoachDashboardScreen extends StatefulWidget {
   final int coachId;
@@ -29,7 +33,7 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
-              await ApiService.clearToken();
+              await ApiClient.clearToken();
               if (context.mounted) context.go('/login');
             },
           ),
@@ -74,12 +78,12 @@ class _AthletesTabState extends State<_AthletesTab> {
 
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
-    final result = await ApiService.getAthletesByCoach(widget.coachId);
+    final result = await AthleteService.getAthletesByCoach(widget.coachId);
     if (!mounted) return;
     if (result.isSuccess) {
       setState(() { _athletes = result.data ?? []; _loading = false; });
     } else if (result.isUnauthorized) {
-      await ApiService.clearToken();
+      await ApiClient.clearToken();
       if (mounted) context.go('/login');
     } else {
       setState(() { _loading = false; _error = result.errorMessage; });
@@ -94,7 +98,7 @@ class _AthletesTabState extends State<_AthletesTab> {
         message: _error!,
         onRetry: _load,
         onLogout: () async {
-          await ApiService.clearToken();
+          await ApiClient.clearToken();
           if (context.mounted) context.go('/login');
         },
       );
@@ -127,10 +131,10 @@ class _AthletesTabState extends State<_AthletesTab> {
   }
 
   Future<void> _assignAthlete() async {
-    final allResult = await ApiService.getAllAthletes();
+    final allResult = await AthleteService.getAllAthletes();
     if (!mounted) return;
     if (allResult.isUnauthorized) {
-      await ApiService.clearToken();
+      await ApiClient.clearToken();
       if (mounted) context.go('/login');
       return;
     }
@@ -157,7 +161,7 @@ class _AthletesTabState extends State<_AthletesTab> {
     );
     if (selected == null) return;
 
-    final response = await ApiService.assignAthleteToCoach(
+    final response = await AthleteService.assignAthleteToCoach(
       selected['id'],
       selected['name'],
       selected['email'],
@@ -165,7 +169,7 @@ class _AthletesTabState extends State<_AthletesTab> {
     );
     if (!mounted) return;
     if (response.isUnauthorized) {
-      await ApiService.clearToken();
+      await ApiClient.clearToken();
       context.go('/login');
     } else if (!response.isSuccess) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -202,14 +206,14 @@ class _WorkoutsTabState extends State<_WorkoutsTab> {
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     final results = await Future.wait([
-      ApiService.getWorkoutsByCoach(widget.coachId),
-      ApiService.getAthletesByCoach(widget.coachId),
+      WorkoutService.getWorkoutsByCoach(widget.coachId),
+      AthleteService.getAthletesByCoach(widget.coachId),
     ]);
     if (!mounted) return;
     final workoutsResult = results[0];
     final athletesResult = results[1];
     if (workoutsResult.isUnauthorized) {
-      await ApiService.clearToken();
+      await ApiClient.clearToken();
       if (mounted) context.go('/login');
       return;
     }
@@ -236,10 +240,10 @@ class _WorkoutsTabState extends State<_WorkoutsTab> {
       builder: (_) => _CreateWorkoutDialog(athletes: _athletes, coachId: widget.coachId),
     );
     if (result != null) {
-      final response = await ApiService.createWorkout(result);
+      final response = await WorkoutService.createWorkout(result);
       if (!mounted) return;
       if (response.isUnauthorized) {
-        await ApiService.clearToken();
+        await ApiClient.clearToken();
         context.go('/login');
       } else if (!response.isSuccess) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -267,10 +271,10 @@ class _WorkoutsTabState extends State<_WorkoutsTab> {
       ),
     );
     if (confirmed != true) return;
-    final response = await ApiService.deleteWorkout(id);
+    final response = await WorkoutService.deleteWorkout(id);
     if (!mounted) return;
     if (response.isUnauthorized) {
-      await ApiService.clearToken();
+      await ApiClient.clearToken();
       context.go('/login');
     } else if (!response.isSuccess) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -289,7 +293,7 @@ class _WorkoutsTabState extends State<_WorkoutsTab> {
         message: _error!,
         onRetry: _load,
         onLogout: () async {
-          await ApiService.clearToken();
+          await ApiClient.clearToken();
           if (context.mounted) context.go('/login');
         },
       );
@@ -350,12 +354,12 @@ class _AvailabilityTabState extends State<_AvailabilityTab> {
 
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
-    final result = await ApiService.getCoachAvailability(widget.coachId);
+    final result = await AvailabilityService.getCoachAvailability(widget.coachId);
     if (!mounted) return;
     if (result.isSuccess) {
       setState(() { _availability = result.data ?? []; _loading = false; });
     } else if (result.isUnauthorized) {
-      await ApiService.clearToken();
+      await ApiClient.clearToken();
       if (mounted) context.go('/login');
     } else {
       setState(() { _loading = false; _error = result.errorMessage; });
@@ -369,10 +373,10 @@ class _AvailabilityTabState extends State<_AvailabilityTab> {
     );
     if (result != null) {
       result['coachId'] = widget.coachId;
-      final response = await ApiService.addAvailability(result);
+      final response = await AvailabilityService.addAvailability(result);
       if (!mounted) return;
       if (response.isUnauthorized) {
-        await ApiService.clearToken();
+        await ApiClient.clearToken();
         context.go('/login');
       } else if (!response.isSuccess) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -385,10 +389,10 @@ class _AvailabilityTabState extends State<_AvailabilityTab> {
   }
 
   Future<void> _deleteSlot(int id) async {
-    final response = await ApiService.deleteAvailability(id);
+    final response = await AvailabilityService.deleteAvailability(id);
     if (!mounted) return;
     if (response.isUnauthorized) {
-      await ApiService.clearToken();
+      await ApiClient.clearToken();
       context.go('/login');
     } else if (!response.isSuccess) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -407,7 +411,7 @@ class _AvailabilityTabState extends State<_AvailabilityTab> {
         message: _error!,
         onRetry: _load,
         onLogout: () async {
-          await ApiService.clearToken();
+          await ApiClient.clearToken();
           if (context.mounted) context.go('/login');
         },
       );
@@ -696,15 +700,15 @@ class _ImportTabState extends State<_ImportTab> {
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     final results = await Future.wait([
-      ApiService.getSheetWeeks(),
-      ApiService.getAthletesByCoach(widget.coachId),
+      SheetsService.getSheetWeeks(),
+      AthleteService.getAthletesByCoach(widget.coachId),
     ]);
     if (!mounted) return;
     final weeksResult = results[0];
     final athletesResult = results[1];
 
     if (weeksResult.isUnauthorized) {
-      await ApiService.clearToken();
+      await ApiClient.clearToken();
       if (mounted) context.go('/login');
       return;
     }
@@ -730,7 +734,7 @@ class _ImportTabState extends State<_ImportTab> {
   Future<void> _import() async {
     if (_selectedWeek == null || _selectedAthletes.isEmpty) return;
     setState(() => _importing = true);
-    final result = await ApiService.importSheetWeek({
+    final result = await SheetsService.importSheetWeek({
       'weekNumber': _selectedWeek['weekNumber'],
       'coachId': widget.coachId,
       'startDate': _startDate.toIso8601String().split('T').first,
@@ -742,7 +746,7 @@ class _ImportTabState extends State<_ImportTab> {
     if (!mounted) return;
     setState(() => _importing = false);
     if (result.isUnauthorized) {
-      await ApiService.clearToken();
+      await ApiClient.clearToken();
       if (mounted) context.go('/login');
     } else if (!result.isSuccess) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -767,7 +771,7 @@ class _ImportTabState extends State<_ImportTab> {
         message: _error!,
         onRetry: _load,
         onLogout: () async {
-          await ApiService.clearToken();
+          await ApiClient.clearToken();
           if (context.mounted) context.go('/login');
         },
       );

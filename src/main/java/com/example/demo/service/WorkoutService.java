@@ -24,6 +24,7 @@ public class WorkoutService {
     private final WorkoutRepository workoutRepository;
     private final AthleteRepository athleteRepository;
     private final CoachRepository coachRepository;
+    private final NotificationService notificationService;
 
     public Page<WorkoutResponse> findAll(Pageable pageable) {
         if (SecurityUtils.isAthlete()) {
@@ -66,7 +67,10 @@ public class WorkoutService {
         workout.setScheduledDate(request.getScheduledDate());
         workout.setAthlete(athlete);
         workout.setCoach(coach);
-        return new WorkoutResponse(workoutRepository.save(workout));
+        WorkoutResponse response = new WorkoutResponse(workoutRepository.save(workout));
+        notificationService.create(athlete,
+                "New workout assigned: " + workout.getName() + " · " + workout.getScheduledDate());
+        return response;
     }
 
     public WorkoutResponse update(Long id, WorkoutRequest request) {
@@ -83,6 +87,14 @@ public class WorkoutService {
         workout.setScheduledDate(request.getScheduledDate());
         workout.setAthlete(athlete);
         workout.setCoach(coach);
+        return new WorkoutResponse(workoutRepository.save(workout));
+    }
+
+    public WorkoutResponse updateCompletion(Long id, boolean completed) {
+        Workout workout = workoutRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Workout not found with id: " + id));
+        assertIsCurrentAthlete(workout.getAthlete().getId());
+        workout.setCompleted(completed);
         return new WorkoutResponse(workoutRepository.save(workout));
     }
 

@@ -13,4 +13,6 @@ public class AthleteDashboardResponse {
     private String coachName;
     private List<WorkoutResponse> workouts;
     private List<CoachAvailabilityResponse> coachAvailability;
+    private long totalWorkouts;
+    private long completedWorkouts;
 }

@@ -1,0 +1,7 @@
+#!/bin/bash
+#
+# pre-push — runs before pushing to develop or master
+#
+# To manually update PLAN.md before a push, run:
+#   ./scripts/update-plan.sh && git add PLAN.md && git commit --amend --no-edit
+#

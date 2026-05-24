@@ -8,11 +8,13 @@ import com.example.demo.model.Workout;
 import com.example.demo.repository.AthleteRepository;
 import com.example.demo.repository.CoachRepository;
 import com.example.demo.repository.WorkoutRepository;
+import com.example.demo.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 @Transactional
@@ -22,28 +24,33 @@ public class WorkoutService {
     private final WorkoutRepository workoutRepository;
     private final AthleteRepository athleteRepository;
     private final CoachRepository coachRepository;
+    private final NotificationService notificationService;
 
-    public List<WorkoutResponse> findAll() {
-        return workoutRepository.findAll().stream()
-                .map(WorkoutResponse::new)
-                .toList();
+    public Page<WorkoutResponse> findAll(Pageable pageable) {
+        if (SecurityUtils.isAthlete()) {
+            Long athleteId = currentAthleteId();
+            return workoutRepository.findByAthleteId(athleteId, pageable).map(WorkoutResponse::new);
+        }
+        return workoutRepository.findAll(pageable).map(WorkoutResponse::new);
     }
 
-    public List<WorkoutResponse> findByAthlete(Long athleteId) {
-        return workoutRepository.findByAthleteId(athleteId).stream()
-                .map(WorkoutResponse::new)
-                .toList();
+    public Page<WorkoutResponse> findByAthlete(Long athleteId, Pageable pageable) {
+        if (SecurityUtils.isAthlete()) {
+            assertIsCurrentAthlete(athleteId);
+        }
+        return workoutRepository.findByAthleteId(athleteId, pageable).map(WorkoutResponse::new);
     }
 
-    public List<WorkoutResponse> findByCoach(Long coachId) {
-        return workoutRepository.findByCoachId(coachId).stream()
-                .map(WorkoutResponse::new)
-                .toList();
+    public Page<WorkoutResponse> findByCoach(Long coachId, Pageable pageable) {
+        return workoutRepository.findByCoachId(coachId, pageable).map(WorkoutResponse::new);
     }
 
     public WorkoutResponse findById(Long id) {
         Workout workout = workoutRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Workout not found with id: " + id));
+        if (SecurityUtils.isAthlete()) {
+            assertIsCurrentAthlete(workout.getAthlete().getId());
+        }
         return new WorkoutResponse(workout);
     }
 
@@ -60,7 +67,10 @@ public class WorkoutService {
         workout.setScheduledDate(request.getScheduledDate());
         workout.setAthlete(athlete);
         workout.setCoach(coach);
-        return new WorkoutResponse(workoutRepository.save(workout));
+        WorkoutResponse response = new WorkoutResponse(workoutRepository.save(workout));
+        notificationService.create(athlete,
+                "New workout assigned: " + workout.getName() + " · " + workout.getScheduledDate());
+        return response;
     }
 
     public WorkoutResponse update(Long id, WorkoutRequest request) {
@@ -80,10 +90,31 @@ public class WorkoutService {
         return new WorkoutResponse(workoutRepository.save(workout));
     }
 
+    public WorkoutResponse updateCompletion(Long id, boolean completed) {
+        Workout workout = workoutRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Workout not found with id: " + id));
+        assertIsCurrentAthlete(workout.getAthlete().getId());
+        workout.setCompleted(completed);
+        return new WorkoutResponse(workoutRepository.save(workout));
+    }
+
     public void delete(Long id) {
         if (!workoutRepository.existsById(id)) {
             throw new RuntimeException("Workout not found with id: " + id);
         }
         workoutRepository.deleteById(id);
+    }
+
+    private Long currentAthleteId() {
+        String email = SecurityUtils.getCurrentUserEmail();
+        return athleteRepository.findByEmail(email)
+                .map(Athlete::getId)
+                .orElseThrow(() -> new RuntimeException("Athlete profile not found for user: " + email));
+    }
+
+    private void assertIsCurrentAthlete(Long athleteId) {
+        if (!athleteId.equals(currentAthleteId())) {
+            throw new AccessDeniedException("Access denied: you can only access your own data");
+        }
     }
 }

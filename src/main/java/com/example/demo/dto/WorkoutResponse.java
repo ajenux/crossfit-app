@@ -17,6 +17,7 @@ public class WorkoutResponse {
     private final String athleteName;
     private final Long coachId;
     private final String coachName;
+    private final boolean completed;
 
     public WorkoutResponse(Workout workout) {
         this.id = workout.getId();
@@ -28,5 +29,6 @@ public class WorkoutResponse {
         this.athleteName = workout.getAthlete().getName();
         this.coachId = workout.getCoach().getId();
         this.coachName = workout.getCoach().getName();
+        this.completed = workout.isCompleted();
     }
 }

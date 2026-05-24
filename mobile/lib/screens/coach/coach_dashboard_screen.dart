@@ -773,13 +773,15 @@ class _ImportTab extends StatefulWidget {
 }
 
 class _ImportTabState extends State<_ImportTab> {
+  List<String> _tabs = [];
+  String? _selectedTab;
   List<dynamic> _weeks = [];
   List<dynamic> _athletes = [];
   bool _loading = true;
+  bool _loadingWeeks = false;
   String? _error;
 
   dynamic _selectedWeek;
-  // Each entry: {'athlete': obj, 'weightIndex': 0 (heavy) | 1 (light)}
   List<Map<String, dynamic>> _selectedAthletes = [];
   DateTime _startDate = DateTime.now();
   bool _importing = false;
@@ -793,34 +795,50 @@ class _ImportTabState extends State<_ImportTab> {
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     final results = await Future.wait([
-      SheetsService.getSheetWeeks(),
+      SheetsService.getSheetTabs(),
       AthleteService.getAthletesByCoach(widget.coachId),
     ]);
     if (!mounted) return;
-    final weeksResult = results[0];
-    final athletesResult = results[1];
+    final tabsResult = results[0] as ApiResult<List<dynamic>>;
+    final athletesResult = results[1] as ApiResult<List<dynamic>>;
 
-    if (weeksResult.isUnauthorized) {
+    if (tabsResult.isUnauthorized) {
       await ApiClient.clearToken();
       if (mounted) context.go('/login');
       return;
     }
-    if (!weeksResult.isSuccess) {
-      setState(() { _loading = false; _error = weeksResult.errorMessage; });
+    if (!tabsResult.isSuccess) {
+      setState(() { _loading = false; _error = tabsResult.errorMessage; });
       return;
     }
 
-    final weeks = weeksResult.data ?? [];
+    final tabs = (tabsResult.data ?? []).map((t) => t.toString()).toList();
     final athletes = athletesResult.isSuccess ? (athletesResult.data ?? []) : [];
+    final firstTab = tabs.isNotEmpty ? tabs.first : null;
+
     setState(() {
-      _weeks = weeks;
+      _tabs = tabs;
+      _selectedTab = firstTab;
       _athletes = athletes;
-      _selectedWeek = weeks.isNotEmpty ? weeks.first : null;
       _selectedAthletes = [
         if (athletes.isNotEmpty) {'athlete': athletes.first, 'weightIndex': 0},
         if (athletes.length > 1) {'athlete': athletes[1], 'weightIndex': 1},
       ];
       _loading = false;
+    });
+
+    if (firstTab != null) await _loadWeeks(firstTab);
+  }
+
+  Future<void> _loadWeeks(String tab) async {
+    setState(() { _loadingWeeks = true; _weeks = []; _selectedWeek = null; });
+    final result = await SheetsService.getSheetWeeks(tab);
+    if (!mounted) return;
+    final weeks = result.isSuccess ? (result.data ?? []) : [];
+    setState(() {
+      _weeks = weeks;
+      _selectedWeek = weeks.isNotEmpty ? weeks.first : null;
+      _loadingWeeks = false;
     });
   }
 
@@ -828,6 +846,7 @@ class _ImportTabState extends State<_ImportTab> {
     if (_selectedWeek == null || _selectedAthletes.isEmpty) return;
     setState(() => _importing = true);
     final result = await SheetsService.importSheetWeek({
+      'sheetName': _selectedTab,
       'weekNumber': _selectedWeek['weekNumber'],
       'coachId': widget.coachId,
       'startDate': _startDate.toIso8601String().split('T').first,
@@ -888,8 +907,26 @@ class _ImportTabState extends State<_ImportTab> {
         children: [
           const Text('Import from Google Sheets', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          const Text('Select a week and assign athletes to create workouts automatically.', style: TextStyle(color: Colors.grey)),
+          const Text('Select a month and week, then assign athletes to create workouts.', style: TextStyle(color: Colors.grey)),
           const SizedBox(height: 24),
+          DropdownButtonFormField<String>(
+            value: _selectedTab,
+            decoration: const InputDecoration(labelText: 'Month', border: OutlineInputBorder()),
+            items: _tabs.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+            onChanged: (v) {
+              if (v != null && v != _selectedTab) {
+                setState(() => _selectedTab = v);
+                _loadWeeks(v);
+              }
+            },
+          ),
+          const SizedBox(height: 16),
+          if (_loadingWeeks)
+            const Center(child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: CircularProgressIndicator(),
+            ))
+          else
           DropdownButtonFormField<dynamic>(
             value: _selectedWeek,
             decoration: const InputDecoration(labelText: 'Week', border: OutlineInputBorder()),

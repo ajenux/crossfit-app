@@ -35,12 +35,16 @@ public class SheetsImportService {
     private static final Pattern WEIGHT_PATTERN =
             Pattern.compile("\\(([\\d,\\.]+)/([\\d,\\.]+)\\)");
 
-    public List<GoogleSheetsService.ParsedWeek> listWeeks() throws IOException, GeneralSecurityException {
-        return googleSheetsService.parseWeeks();
+    public List<String> getSheetNames() throws IOException, GeneralSecurityException {
+        return googleSheetsService.getSheetNames();
+    }
+
+    public List<GoogleSheetsService.ParsedWeek> listWeeks(String sheetName) throws IOException, GeneralSecurityException {
+        return googleSheetsService.parseWeeks(sheetName);
     }
 
     public SheetsImportResponse importWeek(SheetsImportRequest request) throws IOException, GeneralSecurityException {
-        List<GoogleSheetsService.ParsedWeek> weeks = googleSheetsService.parseWeeks();
+        List<GoogleSheetsService.ParsedWeek> weeks = googleSheetsService.parseWeeks(request.getSheetName());
 
         GoogleSheetsService.ParsedWeek week = weeks.stream()
                 .filter(w -> w.weekNumber() == request.getWeekNumber())

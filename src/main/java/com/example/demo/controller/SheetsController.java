@@ -21,10 +21,17 @@ public class SheetsController {
 
     private final SheetsImportService sheetsImportService;
 
+    @GetMapping("/tabs")
+    @PreAuthorize("hasRole('COACH')")
+    public ResponseEntity<List<String>> getSheetTabs() throws IOException, GeneralSecurityException {
+        return ResponseEntity.ok(sheetsImportService.getSheetNames());
+    }
+
     @GetMapping("/weeks")
     @PreAuthorize("hasRole('COACH')")
-    public ResponseEntity<List<WeekPreviewResponse>> listWeeks() throws IOException, GeneralSecurityException {
-        List<WeekPreviewResponse> weeks = sheetsImportService.listWeeks().stream()
+    public ResponseEntity<List<WeekPreviewResponse>> listWeeks(
+            @RequestParam String sheet) throws IOException, GeneralSecurityException {
+        List<WeekPreviewResponse> weeks = sheetsImportService.listWeeks(sheet).stream()
                 .map(w -> new WeekPreviewResponse(w.weekNumber(), w.dayCount()))
                 .toList();
         return ResponseEntity.ok(weeks);

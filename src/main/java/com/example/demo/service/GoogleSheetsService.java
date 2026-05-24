@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.util.*;
+import java.util.regex.Pattern;
 
 @Service
 public class GoogleSheetsService {
@@ -26,6 +27,9 @@ public class GoogleSheetsService {
     private String credentialsJson;
 
     public record ParsedWeek(int weekNumber, int dayCount, Map<Integer, String> dayContent) {}
+
+    private static final Pattern WOD_HEADER = Pattern.compile(
+            ".*(amrap|emom|for time|rxt|a completar|chipper).*", Pattern.CASE_INSENSITIVE);
 
     private Sheets buildClient() throws IOException, GeneralSecurityException {
         if (credentialsJson == null || credentialsJson.isBlank()) {
@@ -42,10 +46,19 @@ public class GoogleSheetsService {
                 .build();
     }
 
-    public List<ParsedWeek> parseWeeks() throws IOException, GeneralSecurityException {
+    public List<String> getSheetNames() throws IOException, GeneralSecurityException {
         Sheets sheets = buildClient();
+        return sheets.spreadsheets().get(spreadsheetId).execute()
+                .getSheets().stream()
+                .map(s -> s.getProperties().getTitle())
+                .toList();
+    }
+
+    public List<ParsedWeek> parseWeeks(String sheetName) throws IOException, GeneralSecurityException {
+        Sheets sheets = buildClient();
+        String range = sheetName + "!A1:H600";
         ValueRange response = sheets.spreadsheets().values()
-                .get(spreadsheetId, "A1:H600")
+                .get(spreadsheetId, range)
                 .execute();
         List<List<Object>> rows = response.getValues();
         if (rows == null || rows.isEmpty()) return List.of();
@@ -95,8 +108,33 @@ public class GoogleSheetsService {
 
         Map<Integer, String> content = new LinkedHashMap<>();
         for (int d = 1; d <= dayCount; d++) {
-            content.put(d, builders.get(d).toString().trim());
+            content.put(d, addSectionMarkers(builders.get(d).toString().trim()));
         }
         return new ParsedWeek(weekNumber, dayCount, content);
+    }
+
+    private String addSectionMarkers(String raw) {
+        if (raw == null || raw.isBlank()) return raw;
+        String[] lines = raw.split("\n");
+        StringBuilder result = new StringBuilder("[WARMUP]\n");
+        boolean fuerzaFound = false;
+        boolean wodFound = false;
+
+        for (String line : lines) {
+            String trimmed = line.trim();
+            String lower = trimmed.toLowerCase();
+
+            if (!fuerzaFound && !wodFound && lower.equals("fuerza")) {
+                fuerzaFound = true;
+                result.append("[FUERZA]\n");
+                continue;
+            }
+            if (!wodFound && WOD_HEADER.matcher(lower).matches()) {
+                wodFound = true;
+                result.append("[WOD]\n");
+            }
+            result.append(trimmed).append("\n");
+        }
+        return result.toString().trim();
     }
 }

@@ -65,7 +65,11 @@ class CrossFitApp extends StatelessWidget {
       title: 'CrossFit App',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepOrange),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFFBF5E28),
+          surface: const Color(0xFFFFF8F4),
+        ),
+        scaffoldBackgroundColor: const Color(0xFFFFF8F4),
         useMaterial3: true,
       ),
       routerConfig: _router,

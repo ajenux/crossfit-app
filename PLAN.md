@@ -7,7 +7,7 @@ Updated whenever a phase is completed or started.
 
 ## Current status
 **Active branch:** `develop`
-**Last updated:** 2026-05-24 (session 4)
+**Last updated:** 2026-05-24 (session 5)
 **Production:**
 - Backend: `https://crossfit-app-production-fcf2.up.railway.app` (Railway + PostgreSQL)
 - Frontend: `https://ajenux.github.io/crossfit-app` (GitHub Pages, auto-deploy on push to master)
@@ -62,6 +62,7 @@ Updated whenever a phase is completed or started.
 - [x] **In-app notifications** — bell icon with unread badge on athlete dashboard; `Notification` entity + `GET /api/notifications` + `PUT /api/notifications/read`; `WorkoutService.create()` fires notification on assignment; bulk Sheets import does not trigger per-workout notifications
 - [x] **Athlete progress** — history of completed vs pending workouts; workout completion tracking
 - [x] **Flutter: workout detail screen** — dedicated screen per workout with completion toggle; navigated from the workouts list
+- [x] **Flutter: month tab selector, workout sections, warm theme** — athlete dashboard shows month tabs to filter workouts, workouts grouped into sections, warm color theme applied
 
 ### Quality
 - [x] 16 automated tests (4 service unit tests + 12 controller integration tests)

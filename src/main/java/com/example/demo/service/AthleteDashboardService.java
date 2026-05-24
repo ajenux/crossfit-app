@@ -57,12 +57,16 @@ public class AthleteDashboardService {
                     )).toList();
         }
 
+        long completed = workouts.stream().filter(WorkoutResponse::isCompleted).count();
+
         return new AthleteDashboardResponse(
                 athlete.getId(),
                 athlete.getName(),
                 athlete.getCoach() != null ? athlete.getCoach().getName() : null,
                 workouts,
-                availability
+                availability,
+                workouts.size(),
+                completed
         );
     }
 }

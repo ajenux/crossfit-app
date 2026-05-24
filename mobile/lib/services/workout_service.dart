@@ -32,4 +32,17 @@ class WorkoutService {
     final res = await ApiClient.delete('${ApiClient.baseUrl}/workouts/$id');
     return ApiResult(data: res.statusCode == 204, statusCode: res.statusCode);
   }
+
+  static Future<ApiResult<Map<String, dynamic>>> updateCompletion(
+      int id, bool completed) async {
+    final res = await ApiClient.put(
+      '${ApiClient.baseUrl}/workouts/$id/complete',
+      body: {'completed': completed},
+    );
+    if (res.statusCode == 200) {
+      return ApiResult(
+          data: jsonDecode(res.body) as Map<String, dynamic>, statusCode: 200);
+    }
+    return ApiResult(statusCode: res.statusCode);
+  }
 }

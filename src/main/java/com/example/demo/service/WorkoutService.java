@@ -90,6 +90,14 @@ public class WorkoutService {
         return new WorkoutResponse(workoutRepository.save(workout));
     }
 
+    public WorkoutResponse updateCompletion(Long id, boolean completed) {
+        Workout workout = workoutRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Workout not found with id: " + id));
+        assertIsCurrentAthlete(workout.getAthlete().getId());
+        workout.setCompleted(completed);
+        return new WorkoutResponse(workoutRepository.save(workout));
+    }
+
     public void delete(Long id) {
         if (!workoutRepository.existsById(id)) {
             throw new RuntimeException("Workout not found with id: " + id);

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../services/api_client.dart';
 import '../../services/dashboard_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/workout_service.dart';
 
 class AthleteDashboardScreen extends StatefulWidget {
   final int athleteId;
@@ -52,6 +53,41 @@ class _AthleteDashboardScreenState extends State<AthleteDashboardScreen> {
     }
   }
 
+  Future<void> _toggleWorkout(Map<String, dynamic> workout, bool completed) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(completed ? 'Mark as completed?' : 'Mark as pending?'),
+        content: Text(workout['name'] as String),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(completed ? 'Complete' : 'Undo'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+    final result = await WorkoutService.updateCompletion(workout['id'] as int, completed);
+    if (!mounted) return;
+    if (result.isSuccess) {
+      setState(() {
+        final workouts = _data!['workouts'] as List;
+        final idx = workouts.indexWhere((w) => w['id'] == workout['id']);
+        if (idx != -1) {
+          workouts[idx] = {...workout, 'completed': completed};
+          final done = workouts.where((w) => w['completed'] == true).length;
+          _data = {..._data!, 'completedWorkouts': done};
+        }
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to update workout status')),
+      );
+    }
+  }
+
   Future<void> _openNotifications() async {
     if (_unreadCount > 0) {
       NotificationService.markAllRead();
@@ -88,7 +124,7 @@ class _AthleteDashboardScreenState extends State<AthleteDashboardScreen> {
           IconButton(
             icon: const Icon(Icons.fitness_center),
             tooltip: 'Ask AI',
-            onPressed: () => context.go('/exercise'),
+            onPressed: () => context.push('/exercise'),
           ),
           IconButton(
             icon: const Icon(Icons.logout),
@@ -124,6 +160,11 @@ class _AthleteDashboardScreenState extends State<AthleteDashboardScreen> {
                           ),
                         ),
                       const SizedBox(height: 16),
+                      _ProgressCard(
+                        total: (_data!['totalWorkouts'] as num).toInt(),
+                        completed: (_data!['completedWorkouts'] as num).toInt(),
+                      ),
+                      const SizedBox(height: 16),
                       const Text('Coach Availability', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
                       if ((_data!['coachAvailability'] as List).isEmpty)
@@ -144,17 +185,81 @@ class _AthleteDashboardScreenState extends State<AthleteDashboardScreen> {
                       if ((_data!['workouts'] as List).isEmpty)
                         const Text('No workouts assigned yet.', style: TextStyle(color: Colors.grey))
                       else
-                        ...(_data!['workouts'] as List).map((w) => Card(
-                          child: ListTile(
-                            leading: const Icon(Icons.sports),
-                            title: Text(w['name']),
-                            subtitle: Text('${w['type']} · ${w['scheduledDate']}'),
-                            trailing: const Icon(Icons.chevron_right),
-                          ),
+                        ...(_data!['workouts'] as List).map((w) => _WorkoutCard(
+                          workout: w as Map<String, dynamic>,
+                          onToggle: (completed) => _toggleWorkout(w, completed),
                         )),
                     ],
                   ),
                 ),
+    );
+  }
+}
+
+class _ProgressCard extends StatelessWidget {
+  final int total;
+  final int completed;
+  const _ProgressCard({required this.total, required this.completed});
+
+  @override
+  Widget build(BuildContext context) {
+    final pct = total == 0 ? 0.0 : completed / total;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Progress', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text('$completed / $total', style: const TextStyle(fontSize: 16)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            LinearProgressIndicator(
+              value: pct,
+              minHeight: 8,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            const SizedBox(height: 4),
+            Text('${(pct * 100).toInt()}% completed',
+                style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkoutCard extends StatelessWidget {
+  final Map<String, dynamic> workout;
+  final void Function(bool) onToggle;
+  const _WorkoutCard({required this.workout, required this.onToggle});
+
+  @override
+  Widget build(BuildContext context) {
+    final isCompleted = workout['completed'] == true;
+    return Card(
+      child: ListTile(
+        leading: Icon(
+          isCompleted ? Icons.check_circle : Icons.radio_button_unchecked,
+          color: isCompleted ? Colors.green : Colors.grey,
+        ),
+        title: Text(
+          workout['name'] as String,
+          style: TextStyle(
+            decoration: isCompleted ? TextDecoration.lineThrough : null,
+            color: isCompleted ? Colors.grey : null,
+          ),
+        ),
+        subtitle: Text('${workout['type']} · ${workout['scheduledDate']}'),
+        trailing: TextButton(
+          onPressed: () => onToggle(!isCompleted),
+          child: Text(isCompleted ? 'Undo' : 'Done'),
+        ),
+      ),
     );
   }
 }

@@ -36,4 +36,7 @@ public class Workout {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "coach_id", nullable = false)
     private Coach coach;
+
+    @Column(nullable = false)
+    private boolean completed = false;
 }

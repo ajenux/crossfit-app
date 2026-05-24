@@ -1,5 +1,6 @@
 package com.example.demo.controller;
 
+import com.example.demo.dto.WorkoutCompletionRequest;
 import com.example.demo.dto.WorkoutRequest;
 import com.example.demo.dto.WorkoutResponse;
 import com.example.demo.service.WorkoutService;
@@ -46,6 +47,14 @@ public class WorkoutController {
     @PreAuthorize("hasRole('COACH')")
     public WorkoutResponse update(@PathVariable Long id, @Valid @RequestBody WorkoutRequest request) {
         return workoutService.update(id, request);
+    }
+
+    @PutMapping("/{id}/complete")
+    @PreAuthorize("hasRole('ATHLETE')")
+    public WorkoutResponse updateCompletion(
+            @PathVariable Long id,
+            @Valid @RequestBody WorkoutCompletionRequest request) {
+        return workoutService.updateCompletion(id, request.getCompleted());
     }
 
     @DeleteMapping("/{id}")

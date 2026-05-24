@@ -94,6 +94,8 @@ Updated whenever a phase is completed or started.
 
 ### Low priority / Future ideas
 - [ ] **Better AI** — more capable models or surface AI results directly in the dashboard
+- [ ] **Configurable training days** — coach selects which weekdays map to Dia 1, Dia 2, etc. on import (e.g. Mon/Tue/Wed/Fri); system remembers the preference and pre-selects it next time
+- [ ] **WOD section detection edge cases** — some workouts don't show WOD section; need to review patterns for plans with 4 days and non-standard WOD headers
 
 ---
 

@@ -786,6 +786,38 @@ class _ImportTabState extends State<_ImportTab> {
   DateTime _startDate = DateTime.now();
   bool _importing = false;
 
+  static const _monthMap = {
+    'enero': 1,
+    'feb': 2, 'febrero': 2,
+    'mar': 3, 'marzo': 3, 'marz': 3,
+    'abr': 4, 'abril': 4, 'abri': 4,
+    'may': 5, 'mayo': 5, 'maio': 5,
+    'jun': 6, 'junio': 6,
+    'jul': 7, 'julio': 7,
+    'ago': 8, 'agosto': 8, 'agost': 8,
+    'sep': 9, 'sept': 9, 'septiembre': 9,
+    'oct': 10, 'octu': 10, 'octubre': 10,
+    'nov': 11, 'noviembre': 11,
+    'dic': 12, 'diciembre': 12,
+  };
+
+  String _formatDate(DateTime d) {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return '${d.day} ${months[d.month - 1]} ${d.year}';
+  }
+
+  void _updateStartDate() {
+    if (_selectedTab == null || _selectedWeek == null) return;
+    final month = _monthMap[_selectedTab!.toLowerCase().trim()];
+    if (month == null) return;
+    final year = DateTime.now().year;
+    final firstOfMonth = DateTime(year, month, 1);
+    final daysToMonday = (DateTime.monday - firstOfMonth.weekday + 7) % 7;
+    final firstMonday = firstOfMonth.add(Duration(days: daysToMonday));
+    final weekNum = (_selectedWeek['weekNumber'] as int) - 1;
+    setState(() => _startDate = firstMonday.add(Duration(days: weekNum * 7)));
+  }
+
   @override
   void initState() {
     super.initState();
@@ -840,6 +872,7 @@ class _ImportTabState extends State<_ImportTab> {
       _selectedWeek = weeks.isNotEmpty ? weeks.first : null;
       _loadingWeeks = false;
     });
+    _updateStartDate();
   }
 
   Future<void> _import() async {
@@ -934,7 +967,7 @@ class _ImportTabState extends State<_ImportTab> {
               value: w,
               child: Text('Week ${w['weekNumber']} · ${w['dayCount']} days'),
             )).toList(),
-            onChanged: (v) => setState(() => _selectedWeek = v),
+            onChanged: (v) { setState(() => _selectedWeek = v); _updateStartDate(); },
           ),
           const SizedBox(height: 16),
           Row(
@@ -988,8 +1021,8 @@ class _ImportTabState extends State<_ImportTab> {
           const SizedBox(height: 16),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text('Start date: ${_startDate.toIso8601String().split('T').first}'),
-            subtitle: const Text('Day 1 = this date, Day 2 = next day, etc.'),
+            title: Text('Start date: ${_formatDate(_startDate)}'),
+            subtitle: const Text('Auto-calculated · tap to override'),
             trailing: const Icon(Icons.date_range),
             shape: RoundedRectangleBorder(
               side: const BorderSide(color: Colors.grey),

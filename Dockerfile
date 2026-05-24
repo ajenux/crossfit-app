@@ -18,4 +18,4 @@ COPY --from=build /app/target/*.jar app.jar
 # Railway sets PORT automatically; default to 8080
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Dspring.profiles.active=demo", "-jar", "app.jar"]

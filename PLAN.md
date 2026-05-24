@@ -61,6 +61,7 @@ Updated whenever a phase is completed or started.
 - [x] **AI provider configurable** — Anthropic (Claude) in production, Ollama in local development; switched via environment variable
 - [x] **In-app notifications** — bell icon with unread badge on athlete dashboard; `Notification` entity + `GET /api/notifications` + `PUT /api/notifications/read`; `WorkoutService.create()` fires notification on assignment; bulk Sheets import does not trigger per-workout notifications
 - [x] **Athlete progress** — history of completed vs pending workouts; workout completion tracking
+- [x] **Flutter: workout detail screen** — dedicated screen per workout with completion toggle; navigated from the workouts list
 
 ### Quality
 - [x] 16 automated tests (4 service unit tests + 12 controller integration tests)
@@ -84,6 +85,7 @@ Updated whenever a phase is completed or started.
 - [x] **Flutter: infinite scroll pagination** — Athletes and Workouts tabs load pages of 20; `ScrollController` fetches next page 200px before bottom; pull-to-refresh resets to page 0
 - [x] **Flutter tests** — 16 tests: 4 widget tests (login screen render, invalid credentials, network error, navigation) + 12 service unit tests (`AthleteService`, `WorkoutService`) via injectable `MockClient`
 - [x] **Fix broken tests after JWT refresh** — `AuthServiceTest` (missing `@Mock RefreshTokenService`) and `AuthControllerTest` (`AuthResponse` constructor mismatch) repaired
+- [x] Fix `completed` column migration — add `DEFAULT false` for existing rows
 
 ---
 

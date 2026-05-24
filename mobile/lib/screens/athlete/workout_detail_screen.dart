@@ -176,7 +176,7 @@ class _SectionedDescription extends StatelessWidget {
   const _SectionedDescription({required this.description});
 
   static const _sections = {
-    '[WARMUP]': ('Entrada en calor', Color(0xFF00796B), Color(0xFFE0F2F1)),
+    '[WARMUP]': ('Estructura', Color(0xFF00796B), Color(0xFFE0F2F1)),
     '[FUERZA]': ('Fuerza', Color(0xFFE65100), Color(0xFFFFF3E0)),
     '[WOD]': ('WOD', Color(0xFFF57F17), Color(0xFFFFFDE7)),
   };

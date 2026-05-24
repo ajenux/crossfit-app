@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../services/api_client.dart';
 import '../../services/dashboard_service.dart';
 import '../../services/notification_service.dart';
-import '../../services/workout_service.dart';
+import 'workout_detail_screen.dart';
 
 class AthleteDashboardScreen extends StatefulWidget {
   final int athleteId;
@@ -53,39 +53,16 @@ class _AthleteDashboardScreenState extends State<AthleteDashboardScreen> {
     }
   }
 
-  Future<void> _toggleWorkout(Map<String, dynamic> workout, bool completed) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(completed ? 'Mark as completed?' : 'Mark as pending?'),
-        content: Text(workout['name'] as String),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(completed ? 'Complete' : 'Undo'),
-          ),
-        ],
-      ),
-    );
-    if (confirm != true || !mounted) return;
-    final result = await WorkoutService.updateCompletion(workout['id'] as int, completed);
-    if (!mounted) return;
-    if (result.isSuccess) {
-      setState(() {
-        final workouts = _data!['workouts'] as List;
-        final idx = workouts.indexWhere((w) => w['id'] == workout['id']);
-        if (idx != -1) {
-          workouts[idx] = {...workout, 'completed': completed};
-          final done = workouts.where((w) => w['completed'] == true).length;
-          _data = {..._data!, 'completedWorkouts': done};
-        }
-      });
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to update workout status')),
-      );
-    }
+  void _onWorkoutUpdated(Map<String, dynamic> updated) {
+    setState(() {
+      final workouts = _data!['workouts'] as List;
+      final idx = workouts.indexWhere((w) => w['id'] == updated['id']);
+      if (idx != -1) {
+        workouts[idx] = updated;
+        final done = workouts.where((w) => w['completed'] == true).length;
+        _data = {..._data!, 'completedWorkouts': done};
+      }
+    });
   }
 
   Future<void> _openNotifications() async {
@@ -187,7 +164,7 @@ class _AthleteDashboardScreenState extends State<AthleteDashboardScreen> {
                       else
                         ...(_data!['workouts'] as List).map((w) => _WorkoutCard(
                           workout: w as Map<String, dynamic>,
-                          onToggle: (completed) => _toggleWorkout(w, completed),
+                          onUpdated: (updated) => _onWorkoutUpdated(updated),
                         )),
                     ],
                   ),
@@ -235,8 +212,8 @@ class _ProgressCard extends StatelessWidget {
 
 class _WorkoutCard extends StatelessWidget {
   final Map<String, dynamic> workout;
-  final void Function(bool) onToggle;
-  const _WorkoutCard({required this.workout, required this.onToggle});
+  final void Function(Map<String, dynamic>) onUpdated;
+  const _WorkoutCard({required this.workout, required this.onUpdated});
 
   @override
   Widget build(BuildContext context) {
@@ -255,10 +232,16 @@ class _WorkoutCard extends StatelessWidget {
           ),
         ),
         subtitle: Text('${workout['type']} · ${workout['scheduledDate']}'),
-        trailing: TextButton(
-          onPressed: () => onToggle(!isCompleted),
-          child: Text(isCompleted ? 'Undo' : 'Done'),
-        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () async {
+          final updated = await Navigator.push<Map<String, dynamic>>(
+            context,
+            MaterialPageRoute(
+              builder: (_) => WorkoutDetailScreen(workout: workout),
+            ),
+          );
+          if (updated != null) onUpdated(updated);
+        },
       ),
     );
   }

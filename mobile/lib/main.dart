@@ -4,6 +4,7 @@ import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
 import 'screens/athlete/athlete_dashboard_screen.dart';
 import 'screens/athlete/exercise_assistant_screen.dart';
+import 'screens/athlete/workout_detail_screen.dart';
 import 'screens/coach/coach_dashboard_screen.dart';
 import 'services/api_client.dart';
 
@@ -46,6 +47,12 @@ final _router = GoRouter(
       ),
     ),
     GoRoute(path: '/exercise', builder: (_, __) => const ExerciseAssistantScreen()),
+    GoRoute(
+      path: '/workout/:id',
+      builder: (_, state) => WorkoutDetailScreen(
+        workout: state.extra as Map<String, dynamic>,
+      ),
+    ),
   ],
 );
 

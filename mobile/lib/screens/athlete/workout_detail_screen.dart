@@ -38,6 +38,25 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
     }
   }
 
+  String _formatType(String type) {
+    return switch (type) {
+      'FOR_TIME' => 'For Time',
+      'AMRAP' => 'AMRAP',
+      'EMOM' => 'EMOM',
+      _ => type,
+    };
+  }
+
+  String _formatDate(String iso) {
+    try {
+      final d = DateTime.parse(iso);
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return '${d.day} ${months[d.month - 1]} ${d.year}';
+    } catch (_) {
+      return iso;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isCompleted = _workout['completed'] == true;
@@ -63,12 +82,12 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
             children: [
               _StatusBanner(isCompleted: isCompleted),
               const SizedBox(height: 24),
-              _InfoRow(icon: Icons.fitness_center, label: 'Type', value: _workout['type'] as String),
+              _InfoRow(icon: Icons.fitness_center, label: 'Type', value: _formatType(_workout['type'] as String)),
               const SizedBox(height: 12),
               _InfoRow(
                 icon: Icons.calendar_today,
                 label: 'Scheduled',
-                value: _workout['scheduledDate'] as String,
+                value: _formatDate(_workout['scheduledDate'] as String),
               ),
               const SizedBox(height: 12),
               _InfoRow(
@@ -162,18 +181,23 @@ class _SectionedDescription extends StatelessWidget {
     '[WOD]': ('WOD', Color(0xFFF57F17), Color(0xFFFFFDE7)),
   };
 
+  static final _wodPattern = RegExp(
+    r'(amrap|emom|for time|rxt|a completar|partner wod|\d+x.*amrap)',
+    caseSensitive: false,
+  );
+
   @override
   Widget build(BuildContext context) {
-    // Fall back to plain text if no markers
-    if (!description.contains('[WARMUP]') && !description.contains('[FUERZA]') && !description.contains('[WOD]')) {
-      return Text(description, style: const TextStyle(fontSize: 15, height: 1.6));
-    }
+    final marked = description.contains('[WARMUP]') ||
+        description.contains('[FUERZA]') ||
+        description.contains('[WOD]');
+    final lines = (marked ? description : _injectMarkers(description)).split('\n');
 
     final widgets = <Widget>[];
     String current = '';
     String? currentKey;
 
-    for (final line in description.split('\n')) {
+    for (final line in lines) {
       final trimmed = line.trim();
       if (_sections.containsKey(trimmed)) {
         if (currentKey != null && current.trim().isNotEmpty) {
@@ -190,7 +214,31 @@ class _SectionedDescription extends StatelessWidget {
       widgets.add(_SectionBlock(sectionKey: currentKey, content: current.trim(), sections: _sections));
     }
 
+    if (widgets.isEmpty) {
+      return Text(description, style: const TextStyle(fontSize: 15, height: 1.6));
+    }
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: widgets);
+  }
+
+  String _injectMarkers(String raw) {
+    final lines = raw.split('\n');
+    final result = StringBuffer('[WARMUP]\n');
+    bool fuerzaFound = false;
+    bool wodFound = false;
+    for (final line in lines) {
+      final lower = line.trim().toLowerCase();
+      if (!fuerzaFound && !wodFound && lower == 'fuerza') {
+        fuerzaFound = true;
+        result.write('[FUERZA]\n');
+        continue;
+      }
+      if (!wodFound && _wodPattern.hasMatch(lower)) {
+        wodFound = true;
+        result.write('[WOD]\n');
+      }
+      result.write('${line.trim()}\n');
+    }
+    return result.toString();
   }
 }
 

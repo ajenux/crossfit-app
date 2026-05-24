@@ -37,6 +37,6 @@ public class Workout {
     @JoinColumn(name = "coach_id", nullable = false)
     private Coach coach;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "boolean not null default false")
     private boolean completed = false;
 }

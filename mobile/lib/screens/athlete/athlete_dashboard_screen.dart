@@ -53,6 +53,17 @@ class _AthleteDashboardScreenState extends State<AthleteDashboardScreen> {
     }
   }
 
+  static final _rxcPattern = RegExp(r'\b(\d+\s*RxC)\b', caseSensitive: false);
+
+  String? _extractRxC(List<dynamic> workouts) {
+    for (final w in workouts) {
+      final desc = (w['description'] as String?) ?? '';
+      final match = _rxcPattern.firstMatch(desc);
+      if (match != null) return match.group(1);
+    }
+    return null;
+  }
+
   void _onWorkoutUpdated(Map<String, dynamic> updated) {
     setState(() {
       final workouts = _data!['workouts'] as List;
@@ -141,7 +152,12 @@ class _AthleteDashboardScreenState extends State<AthleteDashboardScreen> {
                         total: (_data!['totalWorkouts'] as num).toInt(),
                         completed: (_data!['completedWorkouts'] as num).toInt(),
                       ),
-                      const SizedBox(height: 16),
+                      ...() {
+                        final rxc = _extractRxC(_data!['workouts'] as List);
+                        return rxc != null
+                            ? [const SizedBox(height: 16), _RxCCard(label: rxc), const SizedBox(height: 16)]
+                            : [const SizedBox(height: 16)];
+                      }(),
                       const Text('Coach Availability', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
                       if ((_data!['coachAvailability'] as List).isEmpty)
@@ -242,6 +258,41 @@ class _WorkoutCard extends StatelessWidget {
           );
           if (updated != null) onUpdated(updated);
         },
+      ),
+    );
+  }
+}
+
+class _RxCCard extends StatelessWidget {
+  final String label;
+  const _RxCCard({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: Theme.of(context).colorScheme.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            const Icon(Icons.trending_up, size: 28),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Esta semana',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer.withAlpha(180))),
+                Text(label,
+                    style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer)),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -90,25 +90,35 @@ public class GoogleSheetsService {
         }
         if (dayCount == 0) dayCount = 3;
 
-        Map<Integer, StringBuilder> builders = new LinkedHashMap<>();
-        for (int d = 1; d <= dayCount; d++) builders.put(d, new StringBuilder());
+        // Two builders per day: even col (warmup/fuerza) and odd col (WOD section).
+        Map<Integer, StringBuilder> mainBuilders = new LinkedHashMap<>();
+        Map<Integer, StringBuilder> wodBuilders = new LinkedHashMap<>();
+        for (int d = 1; d <= dayCount; d++) {
+            mainBuilders.put(d, new StringBuilder());
+            wodBuilders.put(d, new StringBuilder());
+        }
 
         for (int r = 1; r < block.size(); r++) {
             List<Object> row = block.get(r);
             for (int d = 1; d <= dayCount; d++) {
-                int col = (d - 1) * 2;
-                if (col < row.size()) {
-                    String val = row.get(col).toString().trim();
-                    if (!val.isEmpty()) {
-                        builders.get(d).append(val).append("\n");
-                    }
+                int colMain = (d - 1) * 2;
+                int colWod = colMain + 1;
+                if (colMain < row.size()) {
+                    String val = row.get(colMain).toString().trim();
+                    if (!val.isEmpty()) mainBuilders.get(d).append(val).append("\n");
+                }
+                if (colWod < row.size()) {
+                    String val = row.get(colWod).toString().trim();
+                    if (!val.isEmpty()) wodBuilders.get(d).append(val).append("\n");
                 }
             }
         }
 
         Map<Integer, String> content = new LinkedHashMap<>();
         for (int d = 1; d <= dayCount; d++) {
-            content.put(d, addSectionMarkers(builders.get(d).toString().trim()));
+            // Append odd-col content after even-col so addSectionMarkers sees the WOD section last.
+            String combined = mainBuilders.get(d).toString() + wodBuilders.get(d).toString();
+            content.put(d, addSectionMarkers(combined.trim()));
         }
         return new ParsedWeek(weekNumber, dayCount, content);
     }

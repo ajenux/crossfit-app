@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_client.dart';
 import '../../services/athlete_service.dart';
 import '../../services/workout_service.dart';
 import '../../services/availability_service.dart';
 import '../../services/sheets_service.dart';
+import '../../services/import_config_service.dart';
 
 class CoachDashboardScreen extends StatefulWidget {
   final int coachId;
@@ -786,6 +788,16 @@ class _ImportTabState extends State<_ImportTab> {
   DateTime _startDate = DateTime.now();
   bool _importing = false;
 
+  static const _dayNames = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+  static const _dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  // Default: Mon / Tue / Wed / Fri
+  List<bool> _selectedDays = [true, true, true, false, true, false, false];
+
+  bool _autoImportEnabled = false;
+  String? _lastImportedMonday;
+
+  static const _prefKey = 'training_days';
+
   static const _monthMap = {
     'enero': 1,
     'feb': 2, 'febrero': 2,
@@ -818,10 +830,53 @@ class _ImportTabState extends State<_ImportTab> {
     setState(() => _startDate = firstMonday.add(Duration(days: weekNum * 7)));
   }
 
+  Future<void> _loadTrainingDays() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString(_prefKey);
+    if (saved != null && saved.isNotEmpty) {
+      final savedNames = saved.split(',');
+      setState(() {
+        _selectedDays = _dayNames.map((d) => savedNames.contains(d)).toList();
+      });
+    }
+  }
+
+  Future<void> _saveTrainingDays() async {
+    final prefs = await SharedPreferences.getInstance();
+    final selected = _dayNames.where((d) => _selectedDays[_dayNames.indexOf(d)]).join(',');
+    await prefs.setString(_prefKey, selected);
+  }
+
+  List<String> get _orderedTrainingDays =>
+      _dayNames.where((d) => _selectedDays[_dayNames.indexOf(d)]).toList();
+
   @override
   void initState() {
     super.initState();
+    _loadTrainingDays();
     _load();
+  }
+
+  // Returns the Monday of the week that contains [date].
+  // Using the week's Monday (not today) ensures a Friday in month N+1
+  // is still treated as part of month N's last week.
+  DateTime _weekMonday(DateTime date) =>
+      date.subtract(Duration(days: date.weekday - 1));
+
+  // Finds the tab name whose month number matches [monday.month].
+  String? _tabForMonday(List<String> tabs, DateTime monday) {
+    for (final tab in tabs) {
+      if (_monthMap[tab.toLowerCase().trim()] == monday.month) return tab;
+    }
+    return null;
+  }
+
+  // Returns the 1-based week number of [monday] within its month.
+  int _weekNumberInMonth(DateTime monday) {
+    final firstOfMonth = DateTime(monday.year, monday.month, 1);
+    final daysToFirstMonday = (DateTime.monday - firstOfMonth.weekday + 7) % 7;
+    final firstMonday = firstOfMonth.add(Duration(days: daysToFirstMonday));
+    return ((monday.difference(firstMonday).inDays) / 7).floor() + 1;
   }
 
   Future<void> _load() async {
@@ -846,11 +901,27 @@ class _ImportTabState extends State<_ImportTab> {
 
     final tabs = (tabsResult.data ?? []).map((t) => t.toString()).toList();
     final athletes = athletesResult.isSuccess ? (athletesResult.data ?? []) : [];
-    final firstTab = tabs.isNotEmpty ? tabs.first : null;
+
+    // Load saved auto-import config from server.
+    final configResult = await ImportConfigService.getConfig(widget.coachId);
+    if (configResult.isSuccess) {
+      final cfg = configResult.data!;
+      final savedDays = (cfg['trainingDays'] as List?)?.map((d) => d.toString()).toList();
+      if (savedDays != null) {
+        _selectedDays = _dayNames.map((d) => savedDays.contains(d)).toList();
+      }
+      _autoImportEnabled = cfg['enabled'] as bool? ?? false;
+      _lastImportedMonday = cfg['lastImportedMonday'] as String?;
+    }
+
+    // Auto-select the tab that corresponds to the current week's Monday.
+    final today = DateTime.now();
+    final currentMonday = _weekMonday(today);
+    final autoTab = _tabForMonday(tabs, currentMonday) ?? (tabs.isNotEmpty ? tabs.first : null);
 
     setState(() {
       _tabs = tabs;
-      _selectedTab = firstTab;
+      _selectedTab = autoTab;
       _athletes = athletes;
       _selectedAthletes = [
         if (athletes.isNotEmpty) {'athlete': athletes.first, 'weightIndex': 0},
@@ -859,20 +930,91 @@ class _ImportTabState extends State<_ImportTab> {
       _loading = false;
     });
 
-    if (firstTab != null) await _loadWeeks(firstTab);
+    if (autoTab != null) await _loadWeeks(autoTab, autoSelectMonday: currentMonday);
   }
 
-  Future<void> _loadWeeks(String tab) async {
+  Future<void> _saveAutoImportConfig(bool enabled) async {
+    final result = await ImportConfigService.saveConfig({
+      'coachId': widget.coachId,
+      'enabled': enabled,
+      'trainingDays': _orderedTrainingDays,
+      'athletes': _selectedAthletes.map((e) => {
+        'athleteId': e['athlete']['id'],
+        'weightIndex': e['weightIndex'],
+      }).toList(),
+    });
+    if (!mounted) return;
+    if (result.isSuccess) {
+      setState(() {
+        _autoImportEnabled = enabled;
+        _lastImportedMonday = result.data!['lastImportedMonday'] as String?;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(enabled ? 'Auto-import enabled. Workouts will be created every Monday.' : 'Auto-import disabled.'),
+        backgroundColor: enabled ? Colors.green : Colors.grey,
+      ));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.errorMessage), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _loadWeeks(String tab, {DateTime? autoSelectMonday}) async {
     setState(() { _loadingWeeks = true; _weeks = []; _selectedWeek = null; });
     final result = await SheetsService.getSheetWeeks(tab);
     if (!mounted) return;
     final weeks = result.isSuccess ? (result.data ?? []) : [];
+
+    dynamic selected;
+    if (autoSelectMonday != null && weeks.isNotEmpty) {
+      final targetNum = _weekNumberInMonth(autoSelectMonday);
+      selected = weeks.firstWhere(
+        (w) => w['weekNumber'] == targetNum,
+        orElse: () => weeks.last,
+      );
+    } else {
+      selected = weeks.isNotEmpty ? weeks.first : null;
+    }
+
     setState(() {
       _weeks = weeks;
-      _selectedWeek = weeks.isNotEmpty ? weeks.first : null;
+      _selectedWeek = selected;
       _loadingWeeks = false;
     });
     _updateStartDate();
+  }
+
+  Future<void> _clearWorkouts() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Clear all workouts'),
+        content: const Text('This will permanently delete all workouts assigned by you. This cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete all', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final result = await WorkoutService.deleteAllByCoach(widget.coachId);
+    if (!mounted) return;
+    if (result.isUnauthorized) {
+      await ApiClient.clearToken();
+      if (mounted) context.go('/login');
+    } else if (!result.isSuccess) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.errorMessage), backgroundColor: Colors.red),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('All workouts deleted.'), backgroundColor: Colors.orange),
+      );
+    }
   }
 
   Future<void> _import() async {
@@ -883,6 +1025,7 @@ class _ImportTabState extends State<_ImportTab> {
       'weekNumber': _selectedWeek['weekNumber'],
       'coachId': widget.coachId,
       'startDate': _startDate.toIso8601String().split('T').first,
+      'trainingDays': _orderedTrainingDays,
       'athletes': _selectedAthletes.map((e) => {
         'athleteId': e['athlete']['id'],
         'weightIndex': e['weightIndex'],
@@ -938,7 +1081,18 @@ class _ImportTabState extends State<_ImportTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('Import from Google Sheets', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const Text('Import from Google Sheets', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              TextButton.icon(
+                onPressed: _clearWorkouts,
+                icon: const Icon(Icons.delete_sweep, color: Colors.red),
+                label: const Text('Clear all', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
           const SizedBox(height: 4),
           const Text('Select a month and week, then assign athletes to create workouts.', style: TextStyle(color: Colors.grey)),
           const SizedBox(height: 24),
@@ -1019,6 +1173,22 @@ class _ImportTabState extends State<_ImportTab> {
             );
           }),
           const SizedBox(height: 16),
+          const Text('Training days', style: TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            children: List.generate(_dayLabels.length, (i) {
+              return FilterChip(
+                label: Text(_dayLabels[i]),
+                selected: _selectedDays[i],
+                onSelected: (val) {
+                  setState(() => _selectedDays[i] = val);
+                  _saveTrainingDays();
+                },
+              );
+            }),
+          ),
+          const SizedBox(height: 16),
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: Text('Start date: ${_formatDate(_startDate)}'),
@@ -1038,7 +1208,28 @@ class _ImportTabState extends State<_ImportTab> {
               if (picked != null) setState(() => _startDate = picked);
             },
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 16),
+          Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: _autoImportEnabled ? Colors.green : Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: SwitchListTile(
+              title: const Text('Auto-import every week', style: TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: Text(
+                _autoImportEnabled
+                    ? (_lastImportedMonday != null
+                        ? 'Last imported: week of $_lastImportedMonday'
+                        : 'Runs daily at 6am · saves current config')
+                    : 'Saves athletes, weights & training days as default',
+                style: const TextStyle(fontSize: 12),
+              ),
+              value: _autoImportEnabled,
+              activeColor: Colors.green,
+              onChanged: _selectedAthletes.isEmpty ? null : _saveAutoImportConfig,
+            ),
+          ),
+          const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: _importing ? null : _import,
             icon: _importing

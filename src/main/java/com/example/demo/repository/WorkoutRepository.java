@@ -8,4 +8,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface WorkoutRepository extends JpaRepository<Workout, Long> {
     Page<Workout> findByAthleteId(Long athleteId, Pageable pageable);
     Page<Workout> findByCoachId(Long coachId, Pageable pageable);
+    void deleteAllByCoachId(Long coachId);
 }

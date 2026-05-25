@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -24,6 +25,9 @@ public class SheetsImportRequest {
     private LocalDate startDate;
     @NotEmpty
     private List<AthleteImport> athletes;
+
+    // Optional: maps Dia N to a specific weekday. If null, falls back to consecutive days from startDate.
+    private List<DayOfWeek> trainingDays;
 
     @Getter
     @Setter

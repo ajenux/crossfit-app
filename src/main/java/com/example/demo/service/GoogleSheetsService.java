@@ -7,7 +7,6 @@ import com.google.api.services.sheets.v4.SheetsScopes;
 import com.google.api.services.sheets.v4.model.ValueRange;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -19,7 +18,6 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 @Service
-@Slf4j
 public class GoogleSheetsService {
 
     @Value("${google.sheets.spreadsheet-id}")
@@ -31,7 +29,7 @@ public class GoogleSheetsService {
     public record ParsedWeek(int weekNumber, int dayCount, Map<Integer, String> dayContent) {}
 
     private static final Pattern WOD_HEADER = Pattern.compile(
-            ".*(amrap|emom|for time|rxt|a completar|chipper).*", Pattern.CASE_INSENSITIVE);
+            ".*(amrap|emom|for time|rxt|a completar|chipper|\\d+(-\\d+){2,}).*", Pattern.CASE_INSENSITIVE);
 
     private Sheets buildClient() throws IOException, GeneralSecurityException {
         if (credentialsJson == null || credentialsJson.isBlank()) {
@@ -53,18 +51,6 @@ public class GoogleSheetsService {
         return sheets.spreadsheets().get(spreadsheetId).execute()
                 .getSheets().stream()
                 .map(s -> s.getProperties().getTitle())
-                .toList();
-    }
-
-    public List<List<String>> getRawRows(String sheetName) throws IOException, GeneralSecurityException {
-        Sheets sheets = buildClient();
-        ValueRange response = sheets.spreadsheets().values()
-                .get(spreadsheetId, sheetName + "!A1:J600")
-                .execute();
-        List<List<Object>> rows = response.getValues();
-        if (rows == null) return List.of();
-        return rows.stream()
-                .map(r -> r.stream().map(Object::toString).toList())
                 .toList();
     }
 
@@ -114,8 +100,7 @@ public class GoogleSheetsService {
 
         for (int r = 1; r < block.size(); r++) {
             List<Object> row = block.get(r);
-            log.info("sheet-debug week{} row{}: {}", weekNumber, r, row);
-            for (int d = 1; d <= dayCount; d++) {
+for (int d = 1; d <= dayCount; d++) {
                 int colMain = (d - 1) * 2;
                 int colWod = colMain + 1;
                 if (colMain < row.size()) {

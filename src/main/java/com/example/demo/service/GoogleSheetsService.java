@@ -54,6 +54,18 @@ public class GoogleSheetsService {
                 .toList();
     }
 
+    public List<List<String>> getRawRows(String sheetName) throws IOException, GeneralSecurityException {
+        Sheets sheets = buildClient();
+        ValueRange response = sheets.spreadsheets().values()
+                .get(spreadsheetId, sheetName + "!A1:J600")
+                .execute();
+        List<List<Object>> rows = response.getValues();
+        if (rows == null) return List.of();
+        return rows.stream()
+                .map(r -> r.stream().map(Object::toString).toList())
+                .toList();
+    }
+
     public List<ParsedWeek> parseWeeks(String sheetName) throws IOException, GeneralSecurityException {
         Sheets sheets = buildClient();
         String range = sheetName + "!A1:H600";

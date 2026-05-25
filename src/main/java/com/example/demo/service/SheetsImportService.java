@@ -40,6 +40,10 @@ public class SheetsImportService {
         return googleSheetsService.getSheetNames();
     }
 
+    public List<List<String>> getRawRows(String sheetName) throws IOException, GeneralSecurityException {
+        return googleSheetsService.getRawRows(sheetName);
+    }
+
     public List<GoogleSheetsService.ParsedWeek> listWeeks(String sheetName) throws IOException, GeneralSecurityException {
         return googleSheetsService.parseWeeks(sheetName);
     }

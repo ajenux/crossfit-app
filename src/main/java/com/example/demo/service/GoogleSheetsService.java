@@ -7,6 +7,7 @@ import com.google.api.services.sheets.v4.SheetsScopes;
 import com.google.api.services.sheets.v4.model.ValueRange;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +19,7 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 @Service
+@Slf4j
 public class GoogleSheetsService {
 
     @Value("${google.sheets.spreadsheet-id}")
@@ -51,6 +53,18 @@ public class GoogleSheetsService {
         return sheets.spreadsheets().get(spreadsheetId).execute()
                 .getSheets().stream()
                 .map(s -> s.getProperties().getTitle())
+                .toList();
+    }
+
+    public List<List<String>> getRawRows(String sheetName) throws IOException, GeneralSecurityException {
+        Sheets sheets = buildClient();
+        ValueRange response = sheets.spreadsheets().values()
+                .get(spreadsheetId, sheetName + "!A1:J600")
+                .execute();
+        List<List<Object>> rows = response.getValues();
+        if (rows == null) return List.of();
+        return rows.stream()
+                .map(r -> r.stream().map(Object::toString).toList())
                 .toList();
     }
 
@@ -90,25 +104,36 @@ public class GoogleSheetsService {
         }
         if (dayCount == 0) dayCount = 3;
 
-        Map<Integer, StringBuilder> builders = new LinkedHashMap<>();
-        for (int d = 1; d <= dayCount; d++) builders.put(d, new StringBuilder());
+        // Two builders per day: even col (warmup/fuerza) and odd col (WOD section).
+        Map<Integer, StringBuilder> mainBuilders = new LinkedHashMap<>();
+        Map<Integer, StringBuilder> wodBuilders = new LinkedHashMap<>();
+        for (int d = 1; d <= dayCount; d++) {
+            mainBuilders.put(d, new StringBuilder());
+            wodBuilders.put(d, new StringBuilder());
+        }
 
         for (int r = 1; r < block.size(); r++) {
             List<Object> row = block.get(r);
+            log.info("sheet-debug week{} row{}: {}", weekNumber, r, row);
             for (int d = 1; d <= dayCount; d++) {
-                int col = (d - 1) * 2;
-                if (col < row.size()) {
-                    String val = row.get(col).toString().trim();
-                    if (!val.isEmpty()) {
-                        builders.get(d).append(val).append("\n");
-                    }
+                int colMain = (d - 1) * 2;
+                int colWod = colMain + 1;
+                if (colMain < row.size()) {
+                    String val = row.get(colMain).toString().trim();
+                    if (!val.isEmpty()) mainBuilders.get(d).append(val).append("\n");
+                }
+                if (colWod < row.size()) {
+                    String val = row.get(colWod).toString().trim();
+                    if (!val.isEmpty()) wodBuilders.get(d).append(val).append("\n");
                 }
             }
         }
 
         Map<Integer, String> content = new LinkedHashMap<>();
         for (int d = 1; d <= dayCount; d++) {
-            content.put(d, addSectionMarkers(builders.get(d).toString().trim()));
+            // Append odd-col content after even-col so addSectionMarkers sees the WOD section last.
+            String combined = mainBuilders.get(d).toString() + wodBuilders.get(d).toString();
+            content.put(d, addSectionMarkers(combined.trim()));
         }
         return new ParsedWeek(weekNumber, dayCount, content);
     }

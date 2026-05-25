@@ -7,6 +7,7 @@ import com.google.api.services.sheets.v4.SheetsScopes;
 import com.google.api.services.sheets.v4.model.ValueRange;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +19,7 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 @Service
+@Slf4j
 public class GoogleSheetsService {
 
     @Value("${google.sheets.spreadsheet-id}")
@@ -112,6 +114,7 @@ public class GoogleSheetsService {
 
         for (int r = 1; r < block.size(); r++) {
             List<Object> row = block.get(r);
+            log.info("sheet-debug week{} row{}: {}", weekNumber, r, row);
             for (int d = 1; d <= dayCount; d++) {
                 int colMain = (d - 1) * 2;
                 int colWod = colMain + 1;

@@ -865,10 +865,11 @@ class _ImportTabState extends State<_ImportTab> {
 
   // Finds the tab name whose month number matches [monday.month].
   String? _tabForMonday(List<String> tabs, DateTime monday) {
+    String? result;
     for (final tab in tabs) {
-      if (_monthMap[tab.toLowerCase().trim()] == monday.month) return tab;
+      if (_monthMap[tab.toLowerCase().trim()] == monday.month) result = tab;
     }
-    return null;
+    return result;
   }
 
   // Returns the 1-based week number of [monday] within its month.

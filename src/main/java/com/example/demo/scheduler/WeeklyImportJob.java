@@ -71,7 +71,7 @@ public class WeeklyImportJob {
             Optional<String> tab = tabs.stream()
                     .filter(t -> MONTH_TAB_MAP.getOrDefault(t.toLowerCase().trim(), -1)
                             == currentMonday.getMonthValue())
-                    .findFirst();
+                    .reduce((first, second) -> second);
 
             if (tab.isEmpty()) {
                 log.warn("Auto-import: no sheet tab found for month {} (coach {})",

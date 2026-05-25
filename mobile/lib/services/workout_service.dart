@@ -33,6 +33,11 @@ class WorkoutService {
     return ApiResult(data: res.statusCode == 204, statusCode: res.statusCode);
   }
 
+  static Future<ApiResult<bool>> deleteAllByCoach(int coachId) async {
+    final res = await ApiClient.delete('${ApiClient.baseUrl}/workouts/coach/$coachId');
+    return ApiResult(data: res.statusCode == 204, statusCode: res.statusCode);
+  }
+
   static Future<ApiResult<Map<String, dynamic>>> updateCompletion(
       int id, bool completed) async {
     final res = await ApiClient.put(

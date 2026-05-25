@@ -105,6 +105,10 @@ public class WorkoutService {
         workoutRepository.deleteById(id);
     }
 
+    public void deleteAllByCoach(Long coachId) {
+        workoutRepository.deleteAllByCoachId(coachId);
+    }
+
     private Long currentAthleteId() {
         String email = SecurityUtils.getCurrentUserEmail();
         return athleteRepository.findByEmail(email)

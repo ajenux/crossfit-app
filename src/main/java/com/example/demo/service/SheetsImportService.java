@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -56,10 +57,12 @@ public class SheetsImportService {
 
         List<String> createdNames = new ArrayList<>();
 
+        List<DayOfWeek> trainingDays = request.getTrainingDays();
+
         for (Map.Entry<Integer, String> entry : week.dayContent().entrySet()) {
             int dayNum = entry.getKey();
             String raw = entry.getValue();
-            LocalDate date = request.getStartDate().plusDays(dayNum - 1);
+            LocalDate date = resolveDate(request.getStartDate(), dayNum, trainingDays);
             WorkoutType type = detectType(raw);
 
             for (SheetsImportRequest.AthleteImport athleteImport : request.getAthletes()) {
@@ -91,6 +94,17 @@ public class SheetsImportService {
     private String applyWeights(String content, int weightIndex) {
         return WEIGHT_PATTERN.matcher(content)
                 .replaceAll(m -> "(" + (weightIndex == 0 ? m.group(1) : m.group(2)) + ")");
+    }
+
+    // startDate is expected to be the Monday of the target week.
+    // trainingDays maps Dia N (1-based) to a specific weekday offset from Monday.
+    private LocalDate resolveDate(LocalDate startDate, int dayNum, List<DayOfWeek> trainingDays) {
+        if (trainingDays != null && !trainingDays.isEmpty() && dayNum <= trainingDays.size()) {
+            DayOfWeek target = trainingDays.get(dayNum - 1);
+            int offset = target.getValue() - DayOfWeek.MONDAY.getValue();
+            return startDate.plusDays(offset);
+        }
+        return startDate.plusDays(dayNum - 1);
     }
 
     private WorkoutType detectType(String content) {

@@ -63,4 +63,11 @@ public class WorkoutController {
         workoutService.delete(id);
         return ResponseEntity.noContent().build();
     }
+
+    @DeleteMapping("/coach/{coachId}")
+    @PreAuthorize("hasRole('COACH')")
+    public ResponseEntity<Void> deleteAllByCoach(@PathVariable Long coachId) {
+        workoutService.deleteAllByCoach(coachId);
+        return ResponseEntity.noContent().build();
+    }
 }

@@ -7,7 +7,7 @@ Updated whenever a phase is completed or started.
 
 ## Current status
 **Active branch:** `develop`
-**Last updated:** 2026-05-24 (session 5)
+**Last updated:** 2026-05-25 (session 6)
 **Production:**
 - Backend: `https://crossfit-app-production-fcf2.up.railway.app` (Railway + PostgreSQL)
 - Frontend: `https://ajenux.github.io/crossfit-app` (GitHub Pages, auto-deploy on push to master)
@@ -62,7 +62,8 @@ Updated whenever a phase is completed or started.
 - [x] **In-app notifications** — bell icon with unread badge on athlete dashboard; `Notification` entity + `GET /api/notifications` + `PUT /api/notifications/read`; `WorkoutService.create()` fires notification on assignment; bulk Sheets import does not trigger per-workout notifications
 - [x] **Athlete progress** — history of completed vs pending workouts; workout completion tracking
 - [x] **Flutter: workout detail screen** — dedicated screen per workout with completion toggle; navigated from the workouts list
-- [x] **Flutter: month tab selector, workout sections, warm theme** — athlete dashboard shows month tabs to filter workouts, workouts grouped into sections, warm color theme applied
+- [x] **Flutter: month tab selector, workout sections, warm theme** — athlete dashboard shows month tabs to filter workouts, workouts grouped into sections (including Estructura), warm color theme applied
+- [x] **Auto-calculate import dates from month tab** — Sheets import start date derived automatically from the selected month tab; removed manual date entry from import flow
 
 ### Quality
 - [x] 16 automated tests (4 service unit tests + 12 controller integration tests)
@@ -87,6 +88,7 @@ Updated whenever a phase is completed or started.
 - [x] **Flutter tests** — 16 tests: 4 widget tests (login screen render, invalid credentials, network error, navigation) + 12 service unit tests (`AthleteService`, `WorkoutService`) via injectable `MockClient`
 - [x] **Fix broken tests after JWT refresh** — `AuthServiceTest` (missing `@Mock RefreshTokenService`) and `AuthControllerTest` (`AuthResponse` constructor mismatch) repaired
 - [x] Fix `completed` column migration — add `DEFAULT false` for existing rows
+- [x] Fix workout detail — type label, date format, and section fallback
 
 ---
 
@@ -119,3 +121,4 @@ Updated whenever a phase is completed or started.
 | JWT refresh token (access 1h / refresh 7d) | Short-lived access tokens limit exposure if intercepted; refresh token allows seamless renewal without requiring re-login |
 | `ApiClient.httpClient` injectable for tests | Static `http.Client` field replaceable with `MockClient` in tests — avoids DI framework overhead while enabling full HTTP-level test isolation for Flutter services |
 | Bucket4j in-memory rate limiting | No Redis required for Railway deployment; `ConcurrentHashMap<IP, Bucket>` is sufficient for single-instance backend; `clearBuckets()` method enables test isolation |
+| Auto-calculate import dates from month tab | Deriving the start date from the selected month tab removes a manual input step and reduces import errors; month tab already encodes the correct calendar context |

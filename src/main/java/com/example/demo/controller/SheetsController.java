@@ -27,13 +27,6 @@ public class SheetsController {
         return ResponseEntity.ok(sheetsImportService.getSheetNames());
     }
 
-    @GetMapping("/raw")
-    @PreAuthorize("hasRole('COACH')")
-    public ResponseEntity<List<List<String>>> getRawRows(
-            @RequestParam String sheet) throws IOException, GeneralSecurityException {
-        return ResponseEntity.ok(sheetsImportService.getRawRows(sheet));
-    }
-
     @GetMapping("/weeks")
     @PreAuthorize("hasRole('COACH')")
     public ResponseEntity<List<WeekPreviewResponse>> listWeeks(

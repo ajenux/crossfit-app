@@ -14,6 +14,13 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
   late Map<String, dynamic> _workout;
   bool _saving = false;
 
+  static final _rxcPattern = RegExp(r'\b(\d+\s*RxC)\b', caseSensitive: false);
+
+  String? _extractRxC() {
+    final desc = (_workout['description'] as String?) ?? '';
+    return _rxcPattern.firstMatch(desc)?.group(1);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -96,6 +103,10 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
                 value: _workout['coachName'] as String,
               ),
               const Divider(height: 40),
+              if (_extractRxC() != null) ...[
+                _RxCBadge(label: _extractRxC()!),
+                const SizedBox(height: 16),
+              ],
               const Text(
                 'Description',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -272,6 +283,38 @@ class _SectionBlock extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.all(16),
             child: Text(content, style: const TextStyle(fontSize: 15, height: 1.6)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RxCBadge extends StatelessWidget {
+  final String label;
+  const _RxCBadge({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: cs.primaryContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.trending_up, size: 20, color: cs.onPrimaryContainer),
+          const SizedBox(width: 8),
+          Text(
+            'Esta semana: ',
+            style: TextStyle(fontSize: 13, color: cs.onPrimaryContainer.withAlpha(180)),
+          ),
+          Text(
+            label,
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: cs.onPrimaryContainer),
           ),
         ],
       ),

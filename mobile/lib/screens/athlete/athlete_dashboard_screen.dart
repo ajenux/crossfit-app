@@ -56,7 +56,13 @@ class _AthleteDashboardScreenState extends State<AthleteDashboardScreen> {
   static final _rxcPattern = RegExp(r'\b(\d+\s*RxC)\b', caseSensitive: false);
 
   String? _extractRxC(List<dynamic> workouts) {
-    for (final w in workouts) {
+    final today = DateTime.now();
+    final sorted = [...workouts]..sort((a, b) {
+        final da = DateTime.tryParse(a['scheduledDate'] as String? ?? '') ?? DateTime(2000);
+        final db = DateTime.tryParse(b['scheduledDate'] as String? ?? '') ?? DateTime(2000);
+        return da.difference(today).abs().compareTo(db.difference(today).abs());
+      });
+    for (final w in sorted) {
       final desc = (w['description'] as String?) ?? '';
       final match = _rxcPattern.firstMatch(desc);
       if (match != null) return match.group(1);

@@ -7,7 +7,7 @@ Updated whenever a phase is completed or started.
 
 ## Current status
 **Active branch:** `develop`
-**Last updated:** 2026-05-25 (session 6)
+**Last updated:** 2026-05-25 (session 7)
 **Production:**
 - Backend: `https://crossfit-app-production-fcf2.up.railway.app` (Railway + PostgreSQL)
 - Frontend: `https://ajenux.github.io/crossfit-app` (GitHub Pages, auto-deploy on push to master)
@@ -64,6 +64,11 @@ Updated whenever a phase is completed or started.
 - [x] **Flutter: workout detail screen** — dedicated screen per workout with completion toggle; navigated from the workouts list
 - [x] **Flutter: month tab selector, workout sections, warm theme** — athlete dashboard shows month tabs to filter workouts, workouts grouped into sections (including Estructura), warm color theme applied
 - [x] **Auto-calculate import dates from month tab** — Sheets import start date derived automatically from the selected month tab; removed manual date entry from import flow
+- [x] **Configurable training days** — coach selects Mon/Tue/Wed/Fri (or any days) per import; preference saved to DB (`ImportConfig`) and pre-selected on next open
+- [x] **Weekly auto-import cron job** — runs daily at 6am; deduplicates via `lastImportedMonday`; retries automatically if Monday run fails; mirrors `_monthMap` from Flutter
+- [x] **Bulk delete workouts by coach** — `DELETE /api/workouts/coach/{coachId}` + "Clear all" button in Import tab with confirmation dialog
+- [x] **WOD section detection** — fixed two bugs: (1) sheet parser now reads both even and odd columns per day so WOD content in adjacent column is captured; (2) ladder-style WODs (`15-12-9-6-3`) now detected as `[WOD]` section header
+- [x] **Tab disambiguation** — when multiple sheet tabs match the same month (e.g. "Mayo" old + "maio" current), the last matching tab is preferred; fixes importing stale data from duplicate tabs
 
 ### Quality
 - [x] 16 automated tests (4 service unit tests + 12 controller integration tests)
@@ -96,8 +101,8 @@ Updated whenever a phase is completed or started.
 
 ### Low priority / Future ideas
 - [ ] **Better AI** — more capable models or surface AI results directly in the dashboard
-- [ ] **Configurable training days** — coach selects which weekdays map to Dia 1, Dia 2, etc. on import (e.g. Mon/Tue/Wed/Fri); system remembers the preference and pre-selects it next time
-- [ ] **WOD section detection edge cases** — some workouts don't show WOD section; need to review patterns for plans with 4 days and non-standard WOD headers
+- [ ] **"Esta semana: 2 RxC" badge** — show the RxC progression label as a prominent section in the athlete dashboard (the text is already in the workout description under [WARMUP])
+- [ ] **Password reset** — email-based reset flow not yet implemented
 
 ---
 

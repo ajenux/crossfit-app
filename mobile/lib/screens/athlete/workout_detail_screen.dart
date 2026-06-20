@@ -21,6 +21,14 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
     return _rxcPattern.firstMatch(desc)?.group(1);
   }
 
+  String _descriptionWithoutRxC() {
+    final desc = (_workout['description'] as String?) ?? '';
+    return desc
+        .split('\n')
+        .where((line) => !_rxcPattern.hasMatch(line))
+        .join('\n');
+  }
+
   @override
   void initState() {
     super.initState();
@@ -113,7 +121,7 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
               ),
               const SizedBox(height: 12),
               if ((_workout['description'] as String?)?.isNotEmpty == true)
-                _SectionedDescription(description: _workout['description'] as String)
+                _SectionedDescription(description: _descriptionWithoutRxC())
               else
                 const Text(
                   'No description provided.',

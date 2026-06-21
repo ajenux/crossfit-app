@@ -3,6 +3,7 @@ package com.example.demo.controller;
 import com.example.demo.dto.SheetsImportRequest;
 import com.example.demo.dto.SheetsImportResponse;
 import com.example.demo.dto.WeekPreviewResponse;
+import com.example.demo.service.AutoImportService;
 import com.example.demo.service.SheetsImportService;
 import lombok.RequiredArgsConstructor;
 import jakarta.validation.Valid;
@@ -20,6 +21,7 @@ import java.util.List;
 public class SheetsController {
 
     private final SheetsImportService sheetsImportService;
+    private final AutoImportService autoImportService;
 
     @GetMapping("/tabs")
     @PreAuthorize("hasRole('COACH')")
@@ -42,5 +44,12 @@ public class SheetsController {
     public ResponseEntity<SheetsImportResponse> importWeek(@Valid @RequestBody SheetsImportRequest request)
             throws IOException, GeneralSecurityException {
         return ResponseEntity.ok(sheetsImportService.importWeek(request));
+    }
+
+    @PostMapping("/auto-import/run")
+    @PreAuthorize("hasRole('COACH')")
+    public ResponseEntity<String> triggerAutoImport() {
+        autoImportService.runAll();
+        return ResponseEntity.ok("Auto-import triggered — check /api/import-config/{coachId} for status");
     }
 }

@@ -39,4 +39,9 @@ public class Workout {
 
     @Column(nullable = false, columnDefinition = "boolean not null default false")
     private boolean completed = false;
+
+    // Set only for sheet-imported workouts. Format: "{monday_date}-D{dayNum}" e.g. "2026-06-16-D1".
+    // Null for manually created workouts. Used to detect existing imports (idempotency).
+    @Column(name = "sheets_source_key")
+    private String sheetsSourceKey;
 }

@@ -24,8 +24,14 @@ public class ImportConfig {
 
     private boolean enabled;
 
-    // The Monday date of the last successfully imported week — prevents re-importing the same week.
+    // The Monday date of the last successfully imported week.
     private LocalDate lastImportedMonday;
+
+    private java.time.LocalDateTime lastAttemptAt;
+    private java.time.LocalDateTime lastSuccessAt;
+
+    @Column(columnDefinition = "TEXT")
+    private String lastError;
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "import_config_athletes", joinColumns = @JoinColumn(name = "config_id"))

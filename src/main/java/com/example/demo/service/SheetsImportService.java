@@ -55,7 +55,7 @@ public class SheetsImportService {
         Coach coach = coachRepository.findById(request.getCoachId())
                 .orElseThrow(() -> new RuntimeException("Coach not found: " + request.getCoachId()));
 
-        List<String> createdNames = new ArrayList<>();
+        List<String> importedNames = new ArrayList<>();
 
         List<DayOfWeek> trainingDays = request.getTrainingDays();
 
@@ -64,19 +64,34 @@ public class SheetsImportService {
             String raw = entry.getValue();
             LocalDate date = resolveDate(request.getStartDate(), dayNum, trainingDays);
             WorkoutType type = detectType(raw);
+            // Key uniquely identifies this workout's sheet origin — enables safe re-import without duplicates
+            String sourceKey = request.getStartDate().toString() + "-D" + dayNum;
 
             for (SheetsImportRequest.AthleteImport athleteImport : request.getAthletes()) {
                 Athlete athlete = athleteRepository.findById(athleteImport.getAthleteId())
                         .orElseThrow(() -> new RuntimeException("Athlete not found: " + athleteImport.getAthleteId()));
-                Workout w = buildWorkout(
-                        "S" + request.getWeekNumber() + "-D" + dayNum + " " + athlete.getName(),
-                        applyWeights(raw, athleteImport.getWeightIndex()), type, date, athlete, coach);
-                workoutRepository.save(w);
-                createdNames.add(w.getName());
+                String description = applyWeights(raw, athleteImport.getWeightIndex());
+
+                workoutRepository.findByAthleteIdAndSheetsSourceKey(athlete.getId(), sourceKey)
+                        .ifPresentOrElse(existing -> {
+                            // Update content in case coach corrected the sheet; preserve completed state
+                            existing.setDescription(description);
+                            existing.setScheduledDate(date);
+                            existing.setType(type);
+                            workoutRepository.save(existing);
+                            importedNames.add(existing.getName() + " (updated)");
+                        }, () -> {
+                            Workout w = buildWorkout(
+                                    "S" + request.getWeekNumber() + "-D" + dayNum + " " + athlete.getName(),
+                                    description, type, date, athlete, coach);
+                            w.setSheetsSourceKey(sourceKey);
+                            workoutRepository.save(w);
+                            importedNames.add(w.getName());
+                        });
             }
         }
 
-        return new SheetsImportResponse(request.getWeekNumber(), createdNames.size(), createdNames);
+        return new SheetsImportResponse(request.getWeekNumber(), importedNames.size(), importedNames);
     }
 
     private Workout buildWorkout(String name, String description, WorkoutType type,

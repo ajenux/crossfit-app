@@ -34,9 +34,9 @@ docker-compose up -d          # start Postgres (port 5432)
 
 **Run the backend:**
 ```bash
-export $(cat .env | xargs)
-./mvnw spring-boot:run -Dspring-boot.run.profiles=demo
+./start-local.sh
 ```
+Google credentials are read from `.google-credentials.json` (not from `.env`) to avoid shell escaping issues with the JSON private key.
 
 **Run the Flutter app:**
 ```bash

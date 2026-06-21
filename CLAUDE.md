@@ -22,6 +22,37 @@ Key files:
 - `CHANGELOG.md` — feature history by phase
 - `ARCHITECTURE.md` — full system documentation
 
+## Local development
+
+Both local and production run with `SPRING_PROFILES_ACTIVE=demo` so behaviour is identical.
+
+**First-time setup:**
+```bash
+cp .env.example .env          # fill in JWT_SECRET and GOOGLE_CREDENTIALS_JSON
+docker-compose up -d          # start Postgres (port 5432)
+```
+
+**Run the backend:**
+```bash
+export $(cat .env | xargs)
+./mvnw spring-boot:run -Dspring-boot.run.profiles=demo
+```
+
+**Run the Flutter app:**
+```bash
+cd mobile && flutter run
+```
+
+**Stop Postgres:**
+```bash
+docker-compose down
+```
+
+Demo accounts seeded automatically on first start:
+- `coach@demo.com` / `Demo1234`
+- `athlete1@demo.com` / `Demo1234`
+- `athlete2@demo.com` / `Demo1234`
+
 ## Rules
 
 - Always work on `develop`. Merge to `master` only when confirmed working.

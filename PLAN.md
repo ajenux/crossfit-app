@@ -7,7 +7,7 @@ Updated whenever a phase is completed or started.
 
 ## Current status
 **Active branch:** `develop`
-**Last updated:** 2026-06-21 (session 8)
+**Last updated:** 2026-06-22 (session 8)
 **Production:**
 - Backend: `https://crossfit-app-production-fcf2.up.railway.app` (Railway + PostgreSQL)
 - Frontend: `https://ajenux.github.io/crossfit-app` (GitHub Pages, auto-deploy on push to master)
@@ -107,6 +107,7 @@ Updated whenever a phase is completed or started.
   - `.env.example` updated with all required vars and inline comments
   - Both environments use `SPRING_PROFILES_ACTIVE=demo`
   - Tested end-to-end locally: login, auto-import from sheet, idempotency verified
+- [x] **CORS fix for local Flutter web** (session 8) — switched from `setAllowedOrigins` to `setAllowedOriginPatterns` so `http://localhost:*` wildcard works; Flutter web picks a random port on every run so hardcoding was not viable
 
 ---
 
@@ -145,3 +146,4 @@ Updated whenever a phase is completed or started.
 | Dashboard-triggered import (synchronous) | Guarantees data freshness on first load of the week even if all scheduler runs failed; latency (~1-2s) acceptable since it only fires once per week per athlete |
 | `start-local.sh` for local dev | `export $(cat .env | xargs)` breaks on Google service account JSON (special chars, multiline private key); reading credentials from a separate file is the only reliable approach |
 | `.google-credentials.json` separate from `.env` | Keeps the service account JSON out of shell variable parsing entirely; gitignored, same credentials file works for both Sheets and any future Google API |
+| `setAllowedOriginPatterns` for CORS | `setAllowedOrigins` does not support wildcards; Flutter web uses a random port on every run so `http://localhost:*` pattern is the only viable local dev approach |

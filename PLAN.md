@@ -7,7 +7,7 @@ Updated whenever a phase is completed or started.
 
 ## Current status
 **Active branch:** `develop`
-**Last updated:** 2026-05-25 (session 7)
+**Last updated:** 2026-06-21 (session 8)
 **Production:**
 - Backend: `https://crossfit-app-production-fcf2.up.railway.app` (Railway + PostgreSQL)
 - Frontend: `https://ajenux.github.io/crossfit-app` (GitHub Pages, auto-deploy on push to master)
@@ -69,6 +69,12 @@ Updated whenever a phase is completed or started.
 - [x] **Bulk delete workouts by coach** — `DELETE /api/workouts/coach/{coachId}` + "Clear all" button in Import tab with confirmation dialog
 - [x] **WOD section detection** — fixed two bugs: (1) sheet parser now reads both even and odd columns per day so WOD content in adjacent column is captured; (2) ladder-style WODs (`15-12-9-6-3`) now detected as `[WOD]` section header
 - [x] **Tab disambiguation** — when multiple sheet tabs match the same month (e.g. "Mayo" old + "maio" current), the last matching tab is preferred; fixes importing stale data from duplicate tabs
+- [x] **Robust auto-import pipeline** (session 8) — complete redesign with three pillars:
+  - *Idempotency*: `sheetsSourceKey` field on `Workout` (e.g. `"2026-06-16-D1"`); import does upsert — re-running never creates duplicates or overwrites `completed` state
+  - *Dual trigger*: scheduler now runs 4×/day (6am/10am/2pm/6pm) AND `AthleteDashboardController` triggers import synchronously on first load of the week if athlete has no sheet workouts yet
+  - *Visibility*: `ImportConfig` gains `lastAttemptAt`, `lastSuccessAt`, `lastError`; exposed via `GET /api/import-config/{coachId}`
+  - *Centralised logic*: new `AutoImportService` is the single orchestrator; both scheduler and dashboard call the same code path
+  - *Robust tab matching*: changed from exact key lookup to `startsWith` — tab names like `"Junio 2026"` now resolve correctly
 
 ### Quality
 - [x] 16 automated tests (4 service unit tests + 12 controller integration tests)
@@ -94,6 +100,13 @@ Updated whenever a phase is completed or started.
 - [x] **Fix broken tests after JWT refresh** — `AuthServiceTest` (missing `@Mock RefreshTokenService`) and `AuthControllerTest` (`AuthResponse` constructor mismatch) repaired
 - [x] Fix `completed` column migration — add `DEFAULT false` for existing rows
 - [x] Fix workout detail — type label, date format, and section fallback
+- [x] **Local dev environment parity** (session 8) — local and production now run identically:
+  - `docker-compose.yml` for one-command Postgres setup (machines with Docker)
+  - Homebrew Postgres supported out of the box (machines without Docker)
+  - `start-local.sh` — robust startup script that loads vars line-by-line from `.env` and reads `GOOGLE_CREDENTIALS_JSON` from `.google-credentials.json` (avoids shell escaping issues with the service account private key)
+  - `.env.example` updated with all required vars and inline comments
+  - Both environments use `SPRING_PROFILES_ACTIVE=demo`
+  - Tested end-to-end locally: login, auto-import from sheet, idempotency verified
 
 ---
 
@@ -127,3 +140,8 @@ Updated whenever a phase is completed or started.
 | `ApiClient.httpClient` injectable for tests | Static `http.Client` field replaceable with `MockClient` in tests — avoids DI framework overhead while enabling full HTTP-level test isolation for Flutter services |
 | Bucket4j in-memory rate limiting | No Redis required for Railway deployment; `ConcurrentHashMap<IP, Bucket>` is sufficient for single-instance backend; `clearBuckets()` method enables test isolation |
 | Auto-calculate import dates from month tab | Deriving the start date from the selected month tab removes a manual input step and reduces import errors; month tab already encodes the correct calendar context |
+| `AutoImportService` as central orchestrator | Eliminates duplicated import logic between scheduler and dashboard trigger; single code path means fixes and improvements apply everywhere automatically |
+| `sheetsSourceKey` for idempotent import | Storing the sheet origin key on each workout makes re-running imports safe and enables the dual-trigger pattern without risk of duplicates |
+| Dashboard-triggered import (synchronous) | Guarantees data freshness on first load of the week even if all scheduler runs failed; latency (~1-2s) acceptable since it only fires once per week per athlete |
+| `start-local.sh` for local dev | `export $(cat .env | xargs)` breaks on Google service account JSON (special chars, multiline private key); reading credentials from a separate file is the only reliable approach |
+| `.google-credentials.json` separate from `.env` | Keeps the service account JSON out of shell variable parsing entirely; gitignored, same credentials file works for both Sheets and any future Google API |

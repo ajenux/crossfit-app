@@ -66,6 +66,10 @@ public class SheetsImportService {
             WorkoutType type = detectType(raw);
             // Key uniquely identifies this workout's sheet origin — enables safe re-import without duplicates
             String sourceKey = request.getStartDate().toString() + "-D" + dayNum;
+            // Matches the sheet's own "Dia N" header — no week number or athlete name
+            // (the athlete already knows who they are; the week number was a source of
+            // confusion since it didn't always match the sheet's own "Semana N" label).
+            String name = "Dia " + dayNum;
 
             for (SheetsImportRequest.AthleteImport athleteImport : request.getAthletes()) {
                 Athlete athlete = athleteRepository.findById(athleteImport.getAthleteId())
@@ -75,16 +79,17 @@ public class SheetsImportService {
                 workoutRepository.findByAthleteIdAndSheetsSourceKey(athlete.getId(), sourceKey)
                         .ifPresentOrElse(existing -> {
                             // Update content in case coach corrected the sheet; preserve completed state
+                            existing.setName(name);
                             existing.setDescription(description);
                             existing.setScheduledDate(date);
                             existing.setType(type);
+                            existing.setSheetsWeekLabel(week.label());
                             workoutRepository.save(existing);
                             importedNames.add(existing.getName() + " (updated)");
                         }, () -> {
-                            Workout w = buildWorkout(
-                                    "S" + request.getWeekNumber() + "-D" + dayNum + " " + athlete.getName(),
-                                    description, type, date, athlete, coach);
+                            Workout w = buildWorkout(name, description, type, date, athlete, coach);
                             w.setSheetsSourceKey(sourceKey);
+                            w.setSheetsWeekLabel(week.label());
                             workoutRepository.save(w);
                             importedNames.add(w.getName());
                         });

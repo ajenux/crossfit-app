@@ -115,16 +115,63 @@ public class AutoImportService {
             log.info("Auto-import: matched tab '{}' for month {} (coach {})",
                     tab.get(), monday.getMonth(), config.getCoachId());
 
-            SheetsImportRequest req = buildRequest(config, tab.get(), monday);
-            var result = sheetsImportService.importWeek(req);
-
-            importConfigService.recordSuccess(config.getId(), monday);
-            log.info("Auto-import: {} workout(s) processed for week {} tab '{}' (coach {})",
-                    result.workoutsCreated(), req.getWeekNumber(), tab.get(), config.getCoachId());
+            // Week numbers cannot be reliably derived from calendar math — the sheet's own
+            // "Semana N" numbering does not necessarily align with calendar weeks. Once a
+            // human has confirmed one week's mapping (the anchor), every other week in the
+            // same tab is a fixed 7-day offset from it, so the rest can be backfilled safely.
+            if (tab.get().equals(config.getLastImportedTab()) && config.getLastImportedWeekNumber() != null) {
+                backfillDueWeeks(config, tab.get(), config.getLastImportedWeekNumber(),
+                        config.getLastImportedMonday(), monday);
+            } else {
+                String context = config.getLastImportedTab() == null
+                        ? "no prior import found"
+                        : "previous tab was '" + config.getLastImportedTab() + "'";
+                String msg = "New sheet tab '" + tab.get() + "' (" + context
+                        + ") — import this week manually once from the Import tab to confirm the starting week; "
+                        + "auto-import will then backfill everything due and continue on its own.";
+                log.warn("Auto-import: {} (coach {})", msg, config.getCoachId());
+                importConfigService.recordFailure(config.getId(), msg);
+            }
 
         } catch (Exception e) {
             log.error("Auto-import failed for coach {}: {}", config.getCoachId(), e.getMessage(), e);
             importConfigService.recordFailure(config.getId(), e.getMessage());
+        }
+    }
+
+    /**
+     * Imports every week in [tab] whose calendar Monday — derived from the anchor via simple
+     * week-offset arithmetic, since the sheet's week blocks are always sequential 7-day chunks —
+     * falls on or before [targetMonday]. Used both for week-to-week catch-up and to backfill the
+     * rest of a tab right after a coach confirms one week's mapping (manually or automatically).
+     */
+    public void backfillDueWeeks(ImportConfig config, String tab, int anchorWeekNumber,
+                                  LocalDate anchorMonday, LocalDate targetMonday) {
+        try {
+            List<GoogleSheetsService.ParsedWeek> weeks = sheetsImportService.listWeeks(tab);
+            int latestDueWeekNumber = anchorWeekNumber;
+            LocalDate latestDueMonday = anchorMonday;
+
+            for (GoogleSheetsService.ParsedWeek week : weeks) {
+                LocalDate weekMonday = anchorMonday.plusWeeks(week.weekNumber() - anchorWeekNumber);
+                if (weekMonday.isAfter(targetMonday)) continue; // not due yet
+
+                SheetsImportRequest req = buildRequest(config, tab, weekMonday, week.weekNumber());
+                sheetsImportService.importWeek(req);
+
+                if (!weekMonday.isBefore(latestDueMonday)) {
+                    latestDueMonday = weekMonday;
+                    latestDueWeekNumber = week.weekNumber();
+                }
+            }
+
+            importConfigService.recordSuccess(config.getId(), latestDueMonday, tab, latestDueWeekNumber);
+            log.info("Auto-import: tab '{}' backfilled through week {} ({}) for coach {}",
+                    tab, latestDueWeekNumber, latestDueMonday, config.getCoachId());
+        } catch (Exception e) {
+            log.error("Auto-import: backfill failed for tab '{}' (coach {}): {}",
+                    tab, config.getCoachId(), e.getMessage(), e);
+            importConfigService.recordFailure(config.getId(), "Backfill failed: " + e.getMessage());
         }
     }
 
@@ -140,10 +187,10 @@ public class AutoImportService {
                 .reduce((first, second) -> second);
     }
 
-    private SheetsImportRequest buildRequest(ImportConfig config, String tab, LocalDate monday) {
+    private SheetsImportRequest buildRequest(ImportConfig config, String tab, LocalDate monday, int weekNumber) {
         SheetsImportRequest req = new SheetsImportRequest();
         req.setSheetName(tab);
-        req.setWeekNumber(weekNumberInMonth(monday));
+        req.setWeekNumber(weekNumber);
         req.setCoachId(config.getCoachId());
         req.setStartDate(monday);
         req.setTrainingDays(config.getTrainingDays().isEmpty() ? null : config.getTrainingDays());
@@ -151,13 +198,6 @@ public class AutoImportService {
                 .map(this::toAthleteImport)
                 .toList());
         return req;
-    }
-
-    private int weekNumberInMonth(LocalDate monday) {
-        LocalDate firstOfMonth = monday.withDayOfMonth(1);
-        int daysToFirstMonday = (DayOfWeek.MONDAY.getValue() - firstOfMonth.getDayOfWeek().getValue() + 7) % 7;
-        LocalDate firstMonday = firstOfMonth.plusDays(daysToFirstMonday);
-        return (int) ((monday.toEpochDay() - firstMonday.toEpochDay()) / 7) + 1;
     }
 
     private SheetsImportRequest.AthleteImport toAthleteImport(ImportAthleteConfig a) {

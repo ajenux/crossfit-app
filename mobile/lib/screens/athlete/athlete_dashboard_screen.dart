@@ -19,10 +19,13 @@ class _AthleteDashboardScreenState extends State<AthleteDashboardScreen> {
   String? _error;
   List<dynamic> _notifications = [];
   int _unreadCount = 0;
+  late DateTime _viewedMonth;
 
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _viewedMonth = DateTime(now.year, now.month, 1);
     _load();
   }
 
@@ -68,6 +71,96 @@ class _AthleteDashboardScreenState extends State<AthleteDashboardScreen> {
       if (match != null) return match.group(1);
     }
     return null;
+  }
+
+  static const _monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+  String _monthLabel(DateTime d) => '${_monthNames[d.month - 1]} ${d.year}';
+
+  // Monday of the week containing [date].
+  DateTime _weekMonday(DateTime date) => DateTime(date.year, date.month, date.day)
+      .subtract(Duration(days: date.weekday - 1));
+
+  static const _shortMonthNames = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  String _shortDate(DateTime d) => '${_shortMonthNames[d.month - 1]} ${d.day}';
+
+  List<Widget> _buildWorkoutSections() {
+    final now = DateTime.now();
+    final currentMonday = _weekMonday(now);
+    final isCurrentMonth = _viewedMonth.year == now.year && _viewedMonth.month == now.month;
+
+    final monthWorkouts = (_data!['workouts'] as List).where((w) {
+      final d = DateTime.tryParse(w['scheduledDate'] as String? ?? '');
+      return d != null && d.year == _viewedMonth.year && d.month == _viewedMonth.month;
+    }).toList()
+      ..sort((a, b) => (a['scheduledDate'] as String).compareTo(b['scheduledDate'] as String));
+
+    // Group by the Monday of each workout's calendar week, hiding weeks after
+    // the current one when viewing the current month (not yet relevant/programmed).
+    final Map<DateTime, List<dynamic>> byWeek = {};
+    for (final w in monthWorkouts) {
+      final d = DateTime.parse(w['scheduledDate'] as String);
+      final monday = _weekMonday(d);
+      if (isCurrentMonth && monday.isAfter(currentMonday)) continue;
+      byWeek.putIfAbsent(monday, () => []).add(w);
+    }
+
+    if (byWeek.isEmpty) {
+      return [const Text('No workouts this month.', style: TextStyle(color: Colors.grey))];
+    }
+
+    final mondays = byWeek.keys.toList()..sort();
+    final widgets = <Widget>[];
+    for (final monday in mondays) {
+      final weekWorkouts = byWeek[monday]!;
+      // Prefer the coach's own "Semana N" label from the sheet; fall back to
+      // the real date range for manually-created (non-sheet) workouts.
+      String? label;
+      for (final w in weekWorkouts) {
+        final l = w['sheetsWeekLabel'] as String?;
+        if (l != null && l.isNotEmpty) { label = l; break; }
+      }
+      label ??= 'Week of ${_shortDate(monday)}';
+
+      widgets.add(Card(
+        margin: const EdgeInsets.only(top: 8),
+        child: ExpansionTile(
+          title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+          childrenPadding: const EdgeInsets.only(bottom: 8),
+          children: weekWorkouts.map((w) => _WorkoutCard(
+                workout: w as Map<String, dynamic>,
+                onUpdated: (updated) => _onWorkoutUpdated(updated),
+              )).toList(),
+        ),
+      ));
+    }
+    return widgets;
+  }
+
+  Widget _buildMonthNav() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.chevron_left),
+          tooltip: 'Previous month',
+          onPressed: () => setState(
+              () => _viewedMonth = DateTime(_viewedMonth.year, _viewedMonth.month - 1, 1)),
+        ),
+        Text(_monthLabel(_viewedMonth), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        IconButton(
+          icon: const Icon(Icons.chevron_right),
+          tooltip: 'Next month',
+          onPressed: () => setState(
+              () => _viewedMonth = DateTime(_viewedMonth.year, _viewedMonth.month + 1, 1)),
+        ),
+      ],
+    );
   }
 
   void _onWorkoutUpdated(Map<String, dynamic> updated) {
@@ -181,13 +274,12 @@ class _AthleteDashboardScreenState extends State<AthleteDashboardScreen> {
                       const SizedBox(height: 16),
                       const Text('Your Workouts', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
+                      _buildMonthNav(),
+                      const SizedBox(height: 8),
                       if ((_data!['workouts'] as List).isEmpty)
                         const Text('No workouts assigned yet.', style: TextStyle(color: Colors.grey))
                       else
-                        ...(_data!['workouts'] as List).map((w) => _WorkoutCard(
-                          workout: w as Map<String, dynamic>,
-                          onUpdated: (updated) => _onWorkoutUpdated(updated),
-                        )),
+                        ..._buildWorkoutSections(),
                     ],
                   ),
                 ),

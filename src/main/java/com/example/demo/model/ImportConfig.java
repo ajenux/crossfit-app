@@ -27,6 +27,13 @@ public class ImportConfig {
     // The Monday date of the last successfully imported week.
     private LocalDate lastImportedMonday;
 
+    // Sheet tab and week number of the last successful import — used as the
+    // anchor for continuity (next auto-import = lastImportedWeekNumber + 1)
+    // instead of guessing the week number from calendar math, which does not
+    // reliably match the coach's own "Semana N" numbering in the sheet.
+    private String lastImportedTab;
+    private Integer lastImportedWeekNumber;
+
     private java.time.LocalDateTime lastAttemptAt;
     private java.time.LocalDateTime lastSuccessAt;
 

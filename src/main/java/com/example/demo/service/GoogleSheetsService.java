@@ -26,10 +26,13 @@ public class GoogleSheetsService {
     @Value("${google.credentials.json}")
     private String credentialsJson;
 
-    public record ParsedWeek(int weekNumber, int dayCount, Map<Integer, String> dayContent) {}
+    public record ParsedWeek(int weekNumber, String label, int dayCount, Map<Integer, String> dayContent) {}
 
     private static final Pattern WOD_HEADER = Pattern.compile(
             ".*(amrap|emom|for time|rxt|a completar|chipper|\\d+(-\\d+){2,}).*", Pattern.CASE_INSENSITIVE);
+
+    // Matches a standalone "Semana N" label row that precedes a week's "Dia 1" block.
+    private static final Pattern SEMANA_LABEL = Pattern.compile("^semana\\s*\\d+.*$", Pattern.CASE_INSENSITIVE);
 
     private Sheets buildClient() throws IOException, GeneralSecurityException {
         if (credentialsJson == null || credentialsJson.isBlank()) {
@@ -66,23 +69,34 @@ public class GoogleSheetsService {
         List<ParsedWeek> weeks = new ArrayList<>();
         int weekStart = -1;
         int weekNumber = 1;
+        String pendingLabel = null;
+        String currentLabel = null;
 
         for (int i = 0; i < rows.size(); i++) {
             List<Object> row = rows.get(i);
-            if (!row.isEmpty() && "Dia 1".equalsIgnoreCase(row.get(0).toString().trim())) {
+            String cellA = row.isEmpty() ? "" : row.get(0).toString().trim();
+            // "Semana N" rows sit right before the "Dia 1" row of the week they label —
+            // capture the text instead of treating it as workout content.
+            if (SEMANA_LABEL.matcher(cellA).matches()) {
+                pendingLabel = cellA;
+                continue;
+            }
+            if ("Dia 1".equalsIgnoreCase(cellA)) {
                 if (weekStart >= 0) {
-                    weeks.add(buildWeek(rows.subList(weekStart, i), weekNumber++));
+                    weeks.add(buildWeek(rows.subList(weekStart, i), weekNumber++, currentLabel));
                 }
                 weekStart = i;
+                currentLabel = pendingLabel != null ? pendingLabel : ("Week " + weekNumber);
+                pendingLabel = null;
             }
         }
         if (weekStart >= 0) {
-            weeks.add(buildWeek(rows.subList(weekStart, rows.size()), weekNumber));
+            weeks.add(buildWeek(rows.subList(weekStart, rows.size()), weekNumber, currentLabel));
         }
         return weeks;
     }
 
-    private ParsedWeek buildWeek(List<List<Object>> block, int weekNumber) {
+    private ParsedWeek buildWeek(List<List<Object>> block, int weekNumber, String label) {
         List<Object> header = block.get(0);
         int dayCount = 0;
         for (Object cell : header) {
@@ -100,7 +114,8 @@ public class GoogleSheetsService {
 
         for (int r = 1; r < block.size(); r++) {
             List<Object> row = block.get(r);
-for (int d = 1; d <= dayCount; d++) {
+            if (!row.isEmpty() && SEMANA_LABEL.matcher(row.get(0).toString().trim()).matches()) continue;
+            for (int d = 1; d <= dayCount; d++) {
                 int colMain = (d - 1) * 2;
                 int colWod = colMain + 1;
                 if (colMain < row.size()) {
@@ -120,7 +135,7 @@ for (int d = 1; d <= dayCount; d++) {
             String combined = mainBuilders.get(d).toString() + wodBuilders.get(d).toString();
             content.put(d, addSectionMarkers(combined.trim()));
         }
-        return new ParsedWeek(weekNumber, dayCount, content);
+        return new ParsedWeek(weekNumber, label, dayCount, content);
     }
 
     private String addSectionMarkers(String raw) {

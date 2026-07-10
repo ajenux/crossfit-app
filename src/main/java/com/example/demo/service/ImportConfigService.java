@@ -23,6 +23,11 @@ public class ImportConfigService {
         return importConfigRepository.findByCoachId(coachId).map(ImportConfigResponse::new);
     }
 
+    @Transactional(readOnly = true)
+    public Optional<ImportConfig> findConfigEntity(Long coachId) {
+        return importConfigRepository.findByCoachId(coachId);
+    }
+
     public ImportConfigResponse save(ImportConfigRequest request) {
         ImportConfig config = importConfigRepository.findByCoachId(request.getCoachId())
                 .orElseGet(ImportConfig::new);
@@ -42,12 +47,14 @@ public class ImportConfigService {
         return new ImportConfigResponse(importConfigRepository.save(config));
     }
 
-    public void recordSuccess(Long configId, java.time.LocalDate monday) {
+    public void recordSuccess(Long configId, java.time.LocalDate monday, String tab, int weekNumber) {
         ImportConfig config = importConfigRepository.findById(configId)
                 .orElseThrow(() -> new RuntimeException("ImportConfig not found: " + configId));
         config.setLastAttemptAt(java.time.LocalDateTime.now());
         config.setLastSuccessAt(java.time.LocalDateTime.now());
         config.setLastImportedMonday(monday);
+        config.setLastImportedTab(tab);
+        config.setLastImportedWeekNumber(weekNumber);
         config.setLastError(null);
         importConfigRepository.save(config);
     }

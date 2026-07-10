@@ -7,7 +7,7 @@ Updated whenever a phase is completed or started.
 
 ## Current status
 **Active branch:** `develop`
-**Last updated:** 2026-06-22 (session 8)
+**Last updated:** 2026-07-10 (session 9)
 **Production:**
 - Backend: `https://crossfit-app-production-fcf2.up.railway.app` (Railway + PostgreSQL)
 - Frontend: `https://ajenux.github.io/crossfit-app` (GitHub Pages, auto-deploy on push to master)
@@ -75,6 +75,10 @@ Updated whenever a phase is completed or started.
   - *Visibility*: `ImportConfig` gains `lastAttemptAt`, `lastSuccessAt`, `lastError`; exposed via `GET /api/import-config/{coachId}`
   - *Centralised logic*: new `AutoImportService` is the single orchestrator; both scheduler and dashboard call the same code path
   - *Robust tab matching*: changed from exact key lookup to `startsWith` — tab names like `"Junio 2026"` now resolve correctly
+- [x] **Sheets week alignment fix** (session 9) — parse and expose the sheet's own "Semana N" label per week/workout instead of assuming week N lines up with the N-th calendar week of the month; fixes both the import logic and the Import tab "Start date" field, which relied on the same broken assumption
+- [x] **Auto-backfill import** (session 9) — replaced calendar-guessed week numbers with an anchor + 7-day-offset model: once one week's real date is confirmed (manually or automatically), every other week in that sheet tab backfills automatically (past and present, up to today) instead of requiring a manual click per week; guards against the anchor moving backwards from a historical cleanup import, and against the scheduler re-advancing past the current week on repeated same-day runs
+- [x] **Workout naming cleanup** (session 9) — "Dia N" replaces the redundant/stale "S{weekNumber}-D{n} {athlete name}" naming, refreshed on re-import
+- [x] **Flutter: redesigned athlete workout view** (session 9) — paginate by month with prev/next navigation; workouts grouped into collapsible per-week sections labeled with the coach's own "Semana N" instead of one long flat list
 
 ### Quality
 - [x] 16 automated tests (4 service unit tests + 12 controller integration tests)
@@ -108,6 +112,7 @@ Updated whenever a phase is completed or started.
   - Both environments use `SPRING_PROFILES_ACTIVE=demo`
   - Tested end-to-end locally: login, auto-import from sheet, idempotency verified
 - [x] **CORS fix for local Flutter web** (session 8) — switched from `setAllowedOrigins` to `setAllowedOriginPatterns` so `http://localhost:*` wildcard works; Flutter web picks a random port on every run so hardcoding was not viable
+- [x] **Fix Flutter web local dev API URL** (session 9) — web build now defaults `API_URL` to localhost instead of the Android emulator address (`10.0.2.2`), which previously hung silently on web with no error
 
 ---
 
@@ -147,3 +152,4 @@ Updated whenever a phase is completed or started.
 | `start-local.sh` for local dev | `export $(cat .env | xargs)` breaks on Google service account JSON (special chars, multiline private key); reading credentials from a separate file is the only reliable approach |
 | `.google-credentials.json` separate from `.env` | Keeps the service account JSON out of shell variable parsing entirely; gitignored, same credentials file works for both Sheets and any future Google API |
 | `setAllowedOriginPatterns` for CORS | `setAllowedOrigins` does not support wildcards; Flutter web uses a random port on every run so `http://localhost:*` pattern is the only viable local dev approach |
+| Anchor + 7-day-offset model for week alignment | Calendar-week guessing silently imported the wrong week; using the sheet's own "Semana N" label plus a confirmed anchor date lets every other week be derived and backfilled reliably |

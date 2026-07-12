@@ -54,6 +54,7 @@ public class DataInitializer implements CommandLineRunner {
         coachUser.setEmail("coach@demo.com");
         coachUser.setPassword(password);
         coachUser.setRole(Role.COACH);
+        coachUser.setEmailVerified(true);
         userRepository.save(coachUser);
 
         Coach coach = new Coach();
@@ -67,6 +68,7 @@ public class DataInitializer implements CommandLineRunner {
         user1.setEmail("athlete1@demo.com");
         user1.setPassword(password);
         user1.setRole(Role.ATHLETE);
+        user1.setEmailVerified(true);
         userRepository.save(user1);
 
         Athlete athlete1 = new Athlete();
@@ -81,6 +83,7 @@ public class DataInitializer implements CommandLineRunner {
         user2.setEmail("athlete2@demo.com");
         user2.setPassword(password);
         user2.setRole(Role.ATHLETE);
+        user2.setEmailVerified(true);
         userRepository.save(user2);
 
         Athlete athlete2 = new Athlete();

@@ -9,4 +9,12 @@ class AiService {
     }
     return ApiResult(statusCode: res.statusCode);
   }
+
+  static Future<ApiResult<Map<String, dynamic>>> generateWorkout(String name, String type) async {
+    final res = await ApiClient.post('${ApiClient.baseUrl}/ai/generate-workout', body: {'name': name, 'type': type});
+    if (res.statusCode == 200) {
+      return ApiResult(data: jsonDecode(res.body) as Map<String, dynamic>, statusCode: 200);
+    }
+    return ApiResult(statusCode: res.statusCode);
+  }
 }

@@ -7,7 +7,7 @@ Updated whenever a phase is completed or started.
 
 ## Current status
 **Active branch:** `develop`
-**Last updated:** 2026-07-10 (session 9)
+**Last updated:** 2026-07-11 (session 10)
 **Production:**
 - Backend: `https://crossfit-app-production-fcf2.up.railway.app` (Railway + PostgreSQL)
 - Frontend: `https://ajenux.github.io/crossfit-app` (GitHub Pages, auto-deploy on push to master)
@@ -79,9 +79,22 @@ Updated whenever a phase is completed or started.
 - [x] **Auto-backfill import** (session 9) — replaced calendar-guessed week numbers with an anchor + 7-day-offset model: once one week's real date is confirmed (manually or automatically), every other week in that sheet tab backfills automatically (past and present, up to today) instead of requiring a manual click per week; guards against the anchor moving backwards from a historical cleanup import, and against the scheduler re-advancing past the current week on repeated same-day runs
 - [x] **Workout naming cleanup** (session 9) — "Dia N" replaces the redundant/stale "S{weekNumber}-D{n} {athlete name}" naming, refreshed on re-import
 - [x] **Flutter: redesigned athlete workout view** (session 9) — paginate by month with prev/next navigation; workouts grouped into collapsible per-week sections labeled with the coach's own "Semana N" instead of one long flat list
+- [x] **AI results surfaced in coach dashboard** (session 10) — "Generate with AI" button in the Create Workout dialog calls the previously-unused `POST /api/ai/generate-workout` endpoint and fills the description field automatically, based on the workout name/type; tested end-to-end locally (Postgres + Ollama)
+- [x] **"Esta semana: X RxC" badge** — `_RxCCard` on the athlete dashboard and `_RxCBadge` on the workout detail screen extract the `\d+\s*RxC` pattern from the nearest-date workout description and surface it prominently; already implemented (commit `5b504fa`), PLAN.md just hadn't been updated to reflect it
+- [x] **Password reset (email-based)** (session 10) — full forgot/reset password flow:
+  - Backend: `PasswordResetToken` entity (single-use, 30 min expiry) + `PasswordResetService` + `EmailService` (Spring Mail, Gmail SMTP); `POST /api/auth/forgot-password` and `POST /api/auth/reset-password`; always returns 200 on forgot-password regardless of whether the email exists, to avoid leaking registered addresses; resetting a password deletes all of that user's refresh tokens, forcing re-login everywhere
+  - Rate limiting extended to `/api/auth/forgot-password` (same 5/min/IP bucket as login) to prevent email-bombing abuse
+  - Flutter: `ForgotPasswordScreen` and `ResetPasswordScreen` (`/forgot-password`, `/reset-password?token=`), "Forgot password?" link on login
+  - Tested end-to-end locally against real Postgres: token creation, reset, old password rejected, new password accepted, token single-use enforced — all verified via API and through the Flutter web UI
+  - **Requires setup before it works in production**: Railway needs `MAIL_USERNAME`, `MAIL_PASSWORD` (Gmail App Password), and optionally `MAIL_FROM`/`FRONTEND_URL` env vars — not yet configured there
+- [x] **Email verification on registration** (session 10) — new accounts can't log in until they click the link sent to their email:
+  - Backend: `EmailVerificationToken` entity (single-use, 24h expiry) + `EmailVerificationService`; `User.emailVerified` defaults to `false` in Java for new registrations but `true` at the DB level so existing rows aren't locked out by the migration; `register()` sends the verification email, `login()` throws `EmailNotVerifiedException` (403) if unverified; `POST /api/auth/verify-email` and `POST /api/auth/resend-verification` (the latter always returns 200 regardless of whether the email exists or is already verified, same anti-enumeration pattern as forgot-password)
+  - Flutter: `VerifyEmailScreen` (`/verify-email?token=`) handles the email link; `RegisterScreen` shows a "check your email" confirmation instead of navigating away; `LoginScreen` surfaces the 403 detail message and offers a "Resend verification email" button
+  - Demo seed accounts (`DataInitializer`) explicitly marked `emailVerified=true` so they keep working without a real inbox
+  - Reuses the `EmailService`/token infrastructure built for password reset
 
 ### Quality
-- [x] 16 automated tests (4 service unit tests + 12 controller integration tests)
+- [x] 31 automated tests (16 service unit tests + 15 controller integration tests) — 15 added in session 10 for password reset and email verification (`AuthServiceTest`, `AuthControllerTest`)
 - [x] Fix `LazyInitializationException` in `AthleteDashboardService` (`@Transactional(readOnly=true)`)
 - [x] README cleaned (no hardcoded credentials)
 - [x] Duplicate Flutter folder (`crossfit_flutter/`) removed
@@ -113,15 +126,22 @@ Updated whenever a phase is completed or started.
   - Tested end-to-end locally: login, auto-import from sheet, idempotency verified
 - [x] **CORS fix for local Flutter web** (session 8) — switched from `setAllowedOrigins` to `setAllowedOriginPatterns` so `http://localhost:*` wildcard works; Flutter web picks a random port on every run so hardcoding was not viable
 - [x] **Fix Flutter web local dev API URL** (session 9) — web build now defaults `API_URL` to localhost instead of the Android emulator address (`10.0.2.2`), which previously hung silently on web with no error
+- [x] **`DEPLOY.md` rewritten** (session 10) — the old version still described a pending Netlify setup even though production has used GitHub Pages for several sessions (`railway.toml` was also referenced but never existed); replaced with the actual current setup (Railway auto-deploy via GitHub integration, GitHub Pages workflow) and a complete table of required Railway env vars, including the new `MAIL_*`/`FRONTEND_URL` vars for password reset
 
 ---
 
 ## Pending / Next steps
 
+### Setup needed
+- [ ] **Configure Gmail SMTP in Railway** — add `MAIL_USERNAME` and `MAIL_PASSWORD` (Gmail App Password: https://myaccount.google.com/apppasswords) to Railway production env vars so password reset **and** email verification emails actually send; code is done and tested, just needs credentials. Without this, new registrations in production will be locked out of login (no verification email arrives, no way to confirm the account)
+
+### Maturity gaps (from session 10 self-review)
+- [ ] **Broader rate limiting** — Bucket4j currently only guards `/api/auth/login` and `/api/auth/forgot-password`; registration and other sensitive write endpoints are unprotected
+- [ ] **Unit tests for the Google Sheets parser** — `GoogleSheetsService` (week alignment, section markers, WOD detection) is the most complex and historically buggiest logic in the app, but has no dedicated unit tests — only covered indirectly through manual end-to-end verification each session
+- [ ] **Observability** — no structured logging, metrics, or alerting; production issues are currently discovered via user reports, not a dashboard. Deliberately left for last (per user, 2026-07-11)
+
 ### Low priority / Future ideas
-- [ ] **Better AI** — more capable models or surface AI results directly in the dashboard
-- [ ] **"Esta semana: 2 RxC" badge** — show the RxC progression label as a prominent section in the athlete dashboard (the text is already in the workout description under [WARMUP])
-- [ ] **Password reset** — email-based reset flow not yet implemented
+- [ ] **Better AI models** — evaluate more capable models for AI features (currently `claude-haiku-4-5-20251001` in production, `llama3.2` via Ollama locally)
 
 ---
 
@@ -134,7 +154,7 @@ Updated whenever a phase is completed or started.
 | `@Transactional(readOnly=true)` on `AthleteDashboardService` | Without a transaction, `WorkoutResponse` constructor cannot access lazy-loaded `Athlete` and `Coach` associations |
 | `SecurityMockMvcRequestPostProcessors.user()` in tests | `@WithMockUser` does not work with Spring Boot 4's new `@AutoConfigureMockMvc` |
 | Environment variables for credentials | `.env` + `.env.example` pattern, `.env` in `.gitignore` |
-| Railway for backend deployment | Chosen for zero-config PostgreSQL add-on and simple Spring Boot deploy via `railway.toml` |
+| Railway for backend deployment | Chosen for zero-config PostgreSQL add-on and auto-detected Maven/Spring Boot builds — no config file needed, deploys via Railway's GitHub integration on push to `master` |
 | GitHub Pages for Flutter web | Switched from Netlify to GitHub Pages for simpler CI/CD integration via GitHub Actions |
 | Google Sheets Service Account | Sheet is private and owned by the coach — service account (`crossfit-sheets@crossfit-app-496502.iam.gserviceaccount.com`) is the correct auth pattern for server-to-server access without OAuth |
 | Configurable weight index for Sheets import | Refactored from hardcoded two-athlete (A/F) split to support N athletes with a per-athlete configurable weight column index — same program, different weights per athlete |
@@ -153,3 +173,9 @@ Updated whenever a phase is completed or started.
 | `.google-credentials.json` separate from `.env` | Keeps the service account JSON out of shell variable parsing entirely; gitignored, same credentials file works for both Sheets and any future Google API |
 | `setAllowedOriginPatterns` for CORS | `setAllowedOrigins` does not support wildcards; Flutter web uses a random port on every run so `http://localhost:*` pattern is the only viable local dev approach |
 | Anchor + 7-day-offset model for week alignment | Calendar-week guessing silently imported the wrong week; using the sheet's own "Semana N" label plus a confirmed anchor date lets every other week be derived and backfilled reliably |
+| Gmail SMTP for password reset emails | Simplest option with no extra billing account for a personal project; Spring Boot's `spring-boot-starter-mail` needs only host/username/app-password, no SDK integration like SendGrid/SES |
+| Password reset always returns 200 | Returning the same response whether or not the email exists prevents attackers from using the endpoint to enumerate registered accounts |
+| Reset invalidates all refresh tokens | If a password was reset (e.g. after a suspected compromise), every existing session should be forced to log in again with the new password |
+| Hash-based routing (`/#/reset-password?token=`) for the email link | Flutter web's default `go_router` URL strategy is hash-based, which works out of the box on GitHub Pages static hosting with no server-side rewrite rules needed |
+| `emailVerified` defaults `true` at the DB level, `false` in Java | New column added to an existing table — a DB-level default of `true` backfills existing rows as verified so nobody already registered gets locked out, while the Java-side default of `false` still applies to every new registration going forward |
+| Resend-verification always returns 200 | Same anti-enumeration reasoning as forgot-password — the response must not reveal whether the email is registered or already verified |

@@ -7,6 +7,7 @@ import '../../services/workout_service.dart';
 import '../../services/availability_service.dart';
 import '../../services/sheets_service.dart';
 import '../../services/import_config_service.dart';
+import '../../services/ai_service.dart';
 
 class CoachDashboardScreen extends StatefulWidget {
   final int coachId;
@@ -562,6 +563,7 @@ class _CreateWorkoutDialogState extends State<_CreateWorkoutDialog> {
   String _type = 'AMRAP';
   DateTime _date = DateTime.now();
   late dynamic _selectedAthlete;
+  bool _generatingDescription = false;
 
   final _types = ['AMRAP', 'FOR_TIME', 'EMOM', 'STRENGTH', 'ENDURANCE'];
 
@@ -569,6 +571,27 @@ class _CreateWorkoutDialogState extends State<_CreateWorkoutDialog> {
   void initState() {
     super.initState();
     _selectedAthlete = widget.athletes.first;
+  }
+
+  Future<void> _generateDescription() async {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a workout name first')),
+      );
+      return;
+    }
+    setState(() => _generatingDescription = true);
+    final result = await AiService.generateWorkout(name, _type);
+    if (!mounted) return;
+    setState(() => _generatingDescription = false);
+    if (result.isSuccess) {
+      _descController.text = result.data?['description'] ?? '';
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.errorMessage)),
+      );
+    }
   }
 
   @override
@@ -588,6 +611,21 @@ class _CreateWorkoutDialogState extends State<_CreateWorkoutDialog> {
               controller: _descController,
               decoration: const InputDecoration(labelText: 'Description (optional)', border: OutlineInputBorder()),
               maxLines: 2,
+            ),
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: _generatingDescription ? null : _generateDescription,
+                icon: _generatingDescription
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.auto_awesome, size: 18),
+                label: const Text('Generate with AI'),
+              ),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(

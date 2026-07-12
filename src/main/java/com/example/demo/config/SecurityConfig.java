@@ -42,7 +42,9 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/logout").permitAll()
+                .requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/logout",
+                        "/api/auth/forgot-password", "/api/auth/reset-password",
+                        "/api/auth/verify-email", "/api/auth/resend-verification").permitAll()
                 .anyRequest().authenticated()
             )
             .exceptionHandling(ex -> ex

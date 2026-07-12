@@ -16,6 +16,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String _role = 'ATHLETE';
   bool _loading = false;
   String? _error;
+  bool _registered = false;
 
   Future<void> _register() async {
     setState(() { _loading = true; _error = null; });
@@ -27,16 +28,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
     setState(() => _loading = false);
     if (!mounted) return;
-    if (result.isSuccess && result.data != null) {
-      final role = result.data!['role'] as String?;
-      final profileId = result.data!['profileId'];
-      if (role == 'ATHLETE' && profileId != null) {
-        context.go('/athlete/$profileId');
-      } else if (role == 'COACH' && profileId != null) {
-        context.go('/coach/$profileId');
-      } else {
-        setState(() => _error = 'Profile not found. Contact your administrator.');
-      }
+    if (result.isSuccess) {
+      setState(() => _registered = true);
     } else if (result.isNetworkError) {
       setState(() => _error = result.errorMessage);
     } else {
@@ -52,46 +45,60 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
-            children: [
-              TextField(
-                controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Name', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _emailController,
-                decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()),
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _passwordController,
-                decoration: const InputDecoration(labelText: 'Password', border: OutlineInputBorder()),
-                obscureText: true,
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: _role,
-                decoration: const InputDecoration(labelText: 'Role', border: OutlineInputBorder()),
-                items: const [
-                  DropdownMenuItem(value: 'ATHLETE', child: Text('Athlete')),
-                  DropdownMenuItem(value: 'COACH', child: Text('Coach')),
-                ],
-                onChanged: (v) => setState(() => _role = v!),
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: 12),
-                Text(_error!, style: const TextStyle(color: Colors.red)),
-              ],
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _loading ? null : _register,
-                  child: _loading ? const CircularProgressIndicator() : const Text('Register'),
-                ),
-              ),
-            ],
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: _registered
+                ? [
+                    const Icon(Icons.mark_email_read_outlined, size: 56),
+                    const SizedBox(height: 16),
+                    Text(
+                      'We sent a verification link to ${_emailController.text.trim()}. '
+                      'Click it to activate your account, then log in.',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () => context.go('/login'),
+                      child: const Text('Go to login'),
+                    ),
+                  ]
+                : [
+                    TextField(
+                      controller: _nameController,
+                      decoration: const InputDecoration(labelText: 'Name', border: OutlineInputBorder()),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _emailController,
+                      decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()),
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _passwordController,
+                      decoration: const InputDecoration(labelText: 'Password', border: OutlineInputBorder()),
+                      obscureText: true,
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      value: _role,
+                      decoration: const InputDecoration(labelText: 'Role', border: OutlineInputBorder()),
+                      items: const [
+                        DropdownMenuItem(value: 'ATHLETE', child: Text('Athlete')),
+                        DropdownMenuItem(value: 'COACH', child: Text('Coach')),
+                      ],
+                      onChanged: (v) => setState(() => _role = v!),
+                    ),
+                    if (_error != null) ...[
+                      const SizedBox(height: 12),
+                      Text(_error!, style: const TextStyle(color: Colors.red)),
+                    ],
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: _loading ? null : _register,
+                      child: _loading ? const CircularProgressIndicator() : const Text('Register'),
+                    ),
+                  ],
           ),
         ),
       ),

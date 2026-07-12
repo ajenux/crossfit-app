@@ -30,6 +30,11 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private Role role;
 
+    // DB-level default backfills existing rows as verified when this column is added,
+    // so already-registered users aren't locked out; new Users default to false in Java.
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    private boolean emailVerified;
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));

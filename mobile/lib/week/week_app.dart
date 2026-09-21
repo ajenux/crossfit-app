@@ -55,7 +55,6 @@ class WeekScreen extends StatefulWidget {
 
 class _WeekScreenState extends State<WeekScreen> {
   static const _prefWeight = 'week.weightIndex';
-  static const _prefPos = 'week.position';
 
   List<_Week> _weeks = [];
   int _index = 0; // position in _weeks; last = most recent
@@ -103,16 +102,9 @@ class _WeekScreenState extends State<WeekScreen> {
           ));
         }
       }
-      var idx = _currentWeekIndex(weeks);
-      // Keep the week the user was browsing, if the sheet still has it.
-      final saved = _prefs!.getString(_prefPos);
-      if (saved != null) {
-        final found = weeks.indexWhere((w) => w.key == saved);
-        if (found >= 0) idx = found;
-      }
       setState(() {
         _weeks = weeks;
-        _index = idx < 0 ? 0 : idx;
+        _index = weeks.isEmpty ? 0 : _currentWeekIndex(weeks);
         _generatedAt = data['generatedAt'] as String?;
         _loading = false;
       });
@@ -137,7 +129,6 @@ class _WeekScreenState extends State<WeekScreen> {
     final next = _index + delta;
     if (next < 0 || next >= _weeks.length) return;
     setState(() => _index = next);
-    _prefs?.setString(_prefPos, _weeks[next].key);
   }
 
   void _setWeight(int value) {

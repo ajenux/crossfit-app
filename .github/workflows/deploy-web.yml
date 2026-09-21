@@ -1,14 +1,23 @@
-name: Deploy Flutter Web to GitHub Pages
+name: Deploy week viewer to GitHub Pages
 
+# Publishes the backend-free week viewer: reads the coach's Google Sheet,
+# writes workouts.json, and deploys it next to the Flutter web build.
+# Runs on every push to master, every morning, or manually.
 on:
   push:
     branches: [master]
+  schedule:
+    - cron: "0 5 * * *" # 05:00 UTC daily — picks up whatever the coach added
   workflow_dispatch:
 
 permissions:
   contents: read
   pages: write
   id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
 
 jobs:
   build-and-deploy:
@@ -20,6 +29,18 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Read training sheet
+        env:
+          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+        run: |
+          pip install --quiet google-auth requests
+          python3 tools/sheet_to_json.py workouts.json
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -35,9 +56,9 @@ jobs:
         working-directory: mobile
         run: |
           flutter build web --release \
-            --base-href=/crossfit-app/ \
-            --dart-define=API_URL=${{ vars.API_URL }} \
-            --dart-define=DEMO_MODE=false
+            -t lib/main_week.dart \
+            --base-href=/crossfit-app/
+          cp ../workouts.json build/web/workouts.json
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

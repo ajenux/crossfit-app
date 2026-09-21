@@ -7,6 +7,7 @@ import '../../services/workout_service.dart';
 import '../../services/availability_service.dart';
 import '../../services/sheets_service.dart';
 import '../../services/import_config_service.dart';
+import '../../services/ai_service.dart';
 
 class CoachDashboardScreen extends StatefulWidget {
   final int coachId;
@@ -562,6 +563,7 @@ class _CreateWorkoutDialogState extends State<_CreateWorkoutDialog> {
   String _type = 'AMRAP';
   DateTime _date = DateTime.now();
   late dynamic _selectedAthlete;
+  bool _generatingDescription = false;
 
   final _types = ['AMRAP', 'FOR_TIME', 'EMOM', 'STRENGTH', 'ENDURANCE'];
 
@@ -569,6 +571,27 @@ class _CreateWorkoutDialogState extends State<_CreateWorkoutDialog> {
   void initState() {
     super.initState();
     _selectedAthlete = widget.athletes.first;
+  }
+
+  Future<void> _generateDescription() async {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a workout name first')),
+      );
+      return;
+    }
+    setState(() => _generatingDescription = true);
+    final result = await AiService.generateWorkout(name, _type);
+    if (!mounted) return;
+    setState(() => _generatingDescription = false);
+    if (result.isSuccess) {
+      _descController.text = result.data?['description'] ?? '';
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.errorMessage)),
+      );
+    }
   }
 
   @override
@@ -588,6 +611,21 @@ class _CreateWorkoutDialogState extends State<_CreateWorkoutDialog> {
               controller: _descController,
               decoration: const InputDecoration(labelText: 'Description (optional)', border: OutlineInputBorder()),
               maxLines: 2,
+            ),
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: _generatingDescription ? null : _generateDescription,
+                icon: _generatingDescription
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.auto_awesome, size: 18),
+                label: const Text('Generate with AI'),
+              ),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
@@ -795,6 +833,7 @@ class _ImportTabState extends State<_ImportTab> {
 
   bool _autoImportEnabled = false;
   String? _lastImportedMonday;
+  String? _lastImportError;
 
   static const _prefKey = 'training_days';
 
@@ -816,18 +855,6 @@ class _ImportTabState extends State<_ImportTab> {
   String _formatDate(DateTime d) {
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     return '${d.day} ${months[d.month - 1]} ${d.year}';
-  }
-
-  void _updateStartDate() {
-    if (_selectedTab == null || _selectedWeek == null) return;
-    final month = _monthMap[_selectedTab!.toLowerCase().trim()];
-    if (month == null) return;
-    final year = DateTime.now().year;
-    final firstOfMonth = DateTime(year, month, 1);
-    final daysToMonday = (DateTime.monday - firstOfMonth.weekday + 7) % 7;
-    final firstMonday = firstOfMonth.add(Duration(days: daysToMonday));
-    final weekNum = (_selectedWeek['weekNumber'] as int) - 1;
-    setState(() => _startDate = firstMonday.add(Duration(days: weekNum * 7)));
   }
 
   Future<void> _loadTrainingDays() async {
@@ -913,6 +940,7 @@ class _ImportTabState extends State<_ImportTab> {
       }
       _autoImportEnabled = cfg['enabled'] as bool? ?? false;
       _lastImportedMonday = cfg['lastImportedMonday'] as String?;
+      _lastImportError = cfg['lastError'] as String?;
     }
 
     // Auto-select the tab that corresponds to the current week's Monday.
@@ -928,6 +956,11 @@ class _ImportTabState extends State<_ImportTab> {
         if (athletes.isNotEmpty) {'athlete': athletes.first, 'weightIndex': 0},
         if (athletes.length > 1) {'athlete': athletes[1], 'weightIndex': 1},
       ];
+      // Start date defaults to this week's Monday — the sheet's own week
+      // numbering does not reliably map to calendar weeks, so it can't be
+      // derived from the selected tab/week. Adjust manually via the date
+      // picker when importing a week other than the current one.
+      _startDate = currentMonday;
       _loading = false;
     });
 
@@ -983,7 +1016,6 @@ class _ImportTabState extends State<_ImportTab> {
       _selectedWeek = selected;
       _loadingWeeks = false;
     });
-    _updateStartDate();
   }
 
   Future<void> _clearWorkouts() async {
@@ -1043,6 +1075,7 @@ class _ImportTabState extends State<_ImportTab> {
       );
     } else {
       final data = result.data!;
+      setState(() => _lastImportError = null);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Imported ${data['workoutsCreated']} workouts for week ${data['weekNumber']}'),
@@ -1120,9 +1153,9 @@ class _ImportTabState extends State<_ImportTab> {
             decoration: const InputDecoration(labelText: 'Week', border: OutlineInputBorder()),
             items: _weeks.map((w) => DropdownMenuItem(
               value: w,
-              child: Text('Week ${w['weekNumber']} · ${w['dayCount']} days'),
+              child: Text('${w['label'] ?? 'Week ${w['weekNumber']}'} · ${w['dayCount']} days'),
             )).toList(),
-            onChanged: (v) { setState(() => _selectedWeek = v); _updateStartDate(); },
+            onChanged: (v) { setState(() => _selectedWeek = v); },
           ),
           const SizedBox(height: 16),
           Row(
@@ -1230,6 +1263,25 @@ class _ImportTabState extends State<_ImportTab> {
               onChanged: _selectedAthletes.isEmpty ? null : _saveAutoImportConfig,
             ),
           ),
+          if (_autoImportEnabled && _lastImportError != null && _lastImportError!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                border: Border.all(color: Colors.orange),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(_lastImportError!, style: const TextStyle(fontSize: 12))),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: _importing ? null : _import,

@@ -9,4 +9,7 @@ public interface WorkoutRepository extends JpaRepository<Workout, Long> {
     Page<Workout> findByAthleteId(Long athleteId, Pageable pageable);
     Page<Workout> findByCoachId(Long coachId, Pageable pageable);
     void deleteAllByCoachId(Long coachId);
+    java.util.Optional<Workout> findByAthleteIdAndSheetsSourceKey(Long athleteId, String sheetsSourceKey);
+    boolean existsByAthleteIdAndScheduledDateBetweenAndSheetsSourceKeyIsNotNull(
+            Long athleteId, java.time.LocalDate from, java.time.LocalDate to);
 }

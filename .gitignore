@@ -34,3 +34,5 @@ build/
 
 ### Environment ###
 .env
+.google-credentials.json
+/workouts.json

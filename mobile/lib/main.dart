@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
+import 'screens/auth/forgot_password_screen.dart';
+import 'screens/auth/reset_password_screen.dart';
+import 'screens/auth/verify_email_screen.dart';
 import 'screens/athlete/athlete_dashboard_screen.dart';
 import 'screens/athlete/exercise_assistant_screen.dart';
 import 'screens/athlete/workout_detail_screen.dart';
@@ -22,9 +25,14 @@ final _router = GoRouter(
 
     final isLoggedIn = token != null && profileId != null;
     final isAuthRoute = state.matchedLocation == '/login' ||
-        state.matchedLocation == '/register';
+        state.matchedLocation == '/register' ||
+        state.matchedLocation == '/forgot-password';
+    // Reachable via an emailed link regardless of whether the current
+    // browser session happens to be logged in, so exempt from both checks.
+    final isEmailLinkRoute = state.matchedLocation == '/reset-password' ||
+        state.matchedLocation == '/verify-email';
 
-    if (!isLoggedIn && !isAuthRoute) return '/login';
+    if (!isLoggedIn && !isAuthRoute && !isEmailLinkRoute) return '/login';
     if (isLoggedIn && isAuthRoute) {
       if (role == 'ATHLETE') return '/athlete/$profileId';
       if (role == 'COACH') return '/coach/$profileId';
@@ -34,6 +42,15 @@ final _router = GoRouter(
   routes: [
     GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
     GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
+    GoRoute(path: '/forgot-password', builder: (_, __) => const ForgotPasswordScreen()),
+    GoRoute(
+      path: '/reset-password',
+      builder: (_, state) => ResetPasswordScreen(token: state.uri.queryParameters['token']),
+    ),
+    GoRoute(
+      path: '/verify-email',
+      builder: (_, state) => VerifyEmailScreen(token: state.uri.queryParameters['token']),
+    ),
     GoRoute(
       path: '/athlete/:id',
       builder: (_, state) => AthleteDashboardScreen(

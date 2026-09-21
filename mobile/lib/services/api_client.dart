@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -25,11 +26,11 @@ class ApiResult<T> {
 
 class ApiClient {
   // API_URL is injected at build time via --dart-define=API_URL=https://...
-  // Defaults to Android emulator address for local development.
-  // For iOS simulator use: --dart-define=API_URL=http://localhost:8080/api
+  // Default: localhost for web (no emulator networking), 10.0.2.2 for
+  // Android emulator. For iOS simulator use --dart-define=API_URL=http://localhost:8080/api
   static const String baseUrl = String.fromEnvironment(
     'API_URL',
-    defaultValue: 'http://10.0.2.2:8080/api',
+    defaultValue: kIsWeb ? 'http://localhost:8080/api' : 'http://10.0.2.2:8080/api',
   );
 
   // Replaceable in tests via ApiClient.httpClient = MockClient(...)

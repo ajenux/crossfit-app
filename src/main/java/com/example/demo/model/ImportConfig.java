@@ -24,8 +24,21 @@ public class ImportConfig {
 
     private boolean enabled;
 
-    // The Monday date of the last successfully imported week — prevents re-importing the same week.
+    // The Monday date of the last successfully imported week.
     private LocalDate lastImportedMonday;
+
+    // Sheet tab and week number of the last successful import — used as the
+    // anchor for continuity (next auto-import = lastImportedWeekNumber + 1)
+    // instead of guessing the week number from calendar math, which does not
+    // reliably match the coach's own "Semana N" numbering in the sheet.
+    private String lastImportedTab;
+    private Integer lastImportedWeekNumber;
+
+    private java.time.LocalDateTime lastAttemptAt;
+    private java.time.LocalDateTime lastSuccessAt;
+
+    @Column(columnDefinition = "TEXT")
+    private String lastError;
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "import_config_athletes", joinColumns = @JoinColumn(name = "config_id"))

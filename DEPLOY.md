@@ -1,57 +1,45 @@
 # Deploy Instructions
 
-## Estado actual
-- Backend desplegado en Railway ✅
-- URL del backend: `https://crossfit-app-production-fcf2.up.railway.app`
-- GitHub Actions workflow listo (`.github/workflows/deploy-web.yml`) ✅
-- Variable `API_URL` agregada en GitHub repo secrets ✅
+## Current setup
 
-## Pendiente: Configurar Netlify
+- **Backend**: Railway (`https://crossfit-app-production-fcf2.up.railway.app`), auto-deploys on push to `master` via Railway's GitHub integration (no `railway.toml` — Railway auto-detects the Maven/Spring Boot project). Postgres is a Railway plugin; its `PGHOST`/`PGPORT`/`PGDATABASE`/`PGUSER`/`PGPASSWORD` variables are auto-injected and match what `application-demo.properties` expects.
+- **Frontend**: GitHub Pages (`https://ajenux.github.io/crossfit-app`), built and deployed by `.github/workflows/deploy-web.yml` on every push to `master`.
+- Both run with `SPRING_PROFILES_ACTIVE=demo`, same as local dev (see `CLAUDE.md`).
 
-### Paso 1 — Crear sitio en Netlify
-1. Ir a netlify.com (ya logueado)
-2. Crear un sitio vacío arrastrando cualquier archivo HTML
-3. O usar Netlify CLI:
-   ```bash
-   npm install -g netlify-cli
-   netlify login
-   netlify sites:create --name crossfit-app-demo
-   ```
+## Frontend deploy (GitHub Pages)
 
-### Paso 2 — Obtener Site ID
-- Netlify → tu sitio → **Site configuration** → **General** → copiar **Site ID**
+Handled entirely by `.github/workflows/deploy-web.yml`:
+1. Builds `mobile/` with `flutter build web --release --base-href=/crossfit-app/`
+2. Injects `API_URL` from the **GitHub repo variable** (Settings → Secrets and variables → Actions → **Variables** tab, not Secrets) pointing at the Railway backend URL
+3. Deploys the build output to GitHub Pages
 
-### Paso 3 — Obtener Personal Access Token
-- Netlify → avatar arriba a la derecha → **User settings** → **Applications** → **Personal access tokens** → **New access token**
+No manual steps needed — push to `master` (or run the workflow manually via `workflow_dispatch`) and it deploys.
 
-### Paso 4 — Agregar secrets en GitHub
-- Ir a: github.com/ajenux/crossfit-app → **Settings** → **Secrets and variables** → **Actions**
-- Agregar:
-  - `NETLIFY_AUTH_TOKEN` = (token del paso 3)
-  - `NETLIFY_SITE_ID` = (site ID del paso 2)
+## Backend deploy (Railway)
 
-### Paso 5 — Disparar el deploy
-```bash
-git commit --allow-empty -m "Trigger Netlify deploy"
-git push origin master
-```
-O hacer cualquier cambio en master — el workflow se dispara automáticamente.
+Push to `master` triggers a Railway deploy automatically (GitHub integration configured on the Railway project). No local `railway up` or CLI steps needed for routine deploys.
 
-### Paso 6 — Verificar
-- GitHub → Actions → ver que el workflow `Deploy Flutter Web to Netlify` termine en verde
-- Abrir la URL de Netlify y probar la app
+### Required environment variables (Railway project settings)
 
-## Variables ya configuradas en Railway (backend)
-| Variable | Valor |
-|---|---|
-| `JWT_SECRET` | configurado ✅ |
-| `SPRING_PROFILES_ACTIVE` | `demo` ✅ |
-| `SPRING_DATASOURCE_URL` | referencia a Postgres ✅ |
-| `SPRING_DATASOURCE_USERNAME` | referencia a Postgres ✅ |
-| `SPRING_DATASOURCE_PASSWORD` | referencia a Postgres ✅ |
+| Variable | Purpose | Notes |
+|---|---|---|
+| `SPRING_PROFILES_ACTIVE` | Activates `application-demo.properties` | Set to `demo` |
+| `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD` | Postgres connection | Auto-injected by the Railway Postgres plugin — reference them, don't hardcode |
+| `JWT_SECRET` | Signs access/refresh tokens | ≥256 bits |
+| `CORS_ALLOWED_ORIGINS` | Restricts API access | Set to `https://ajenux.github.io` |
+| `GOOGLE_CREDENTIALS_JSON` | Sheets service account | Full JSON on one line |
+| `GOOGLE_SHEETS_SPREADSHEET_ID` | Coach's training sheet | Defaults to the current sheet if unset |
+| `ANTHROPIC_API_KEY` | AI provider in production | Falls back to Ollama if unset (not usable on Railway — no local Ollama there) |
+| `EXERCISEDB_API_KEY` | Exercise GIFs (RapidAPI) | Used by the exercise assistant |
+| `MAIL_USERNAME`, `MAIL_PASSWORD` | Gmail SMTP for password reset emails | `MAIL_PASSWORD` is a Gmail **App Password**, not the account password: https://myaccount.google.com/apppasswords — **not yet configured**, password reset emails won't send until these are set |
+| `MAIL_FROM` | "From" address on reset emails | Optional — defaults to `MAIL_USERNAME` |
+| `FRONTEND_URL` | Base URL embedded in the reset link | Optional — defaults to the GitHub Pages URL above |
 
-## Cuentas demo (creadas por DataInitializer)
-| Email | Password | Rol |
+`PORT` is injected by Railway automatically and does not need to be set manually.
+
+## Demo accounts (created by `DataInitializer`)
+
+| Email | Password | Role |
 |---|---|---|
 | `coach@demo.com` | `Demo1234` | COACH |
 | `athlete1@demo.com` | `Demo1234` | ATHLETE |

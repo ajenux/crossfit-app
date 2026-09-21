@@ -14,6 +14,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
@@ -21,14 +22,15 @@ public class LoginRateLimitFilter extends OncePerRequestFilter {
 
     private static final int MAX_ATTEMPTS = 5;
     private static final Duration WINDOW = Duration.ofMinutes(1);
-    private static final String LOGIN_PATH = "/api/auth/login";
+    private static final Set<String> LIMITED_PATHS = Set.of(
+            "/api/auth/login", "/api/auth/forgot-password", "/api/auth/register", "/api/auth/resend-verification");
 
     private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        if (!"POST".equals(request.getMethod()) || !LOGIN_PATH.equals(request.getRequestURI())) {
+        if (!"POST".equals(request.getMethod()) || !LIMITED_PATHS.contains(request.getRequestURI())) {
             chain.doFilter(request, response);
             return;
         }
@@ -42,7 +44,7 @@ public class LoginRateLimitFilter extends OncePerRequestFilter {
             response.setStatus(429);
             response.setHeader("Retry-After", "60");
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            response.getWriter().write("{\"error\":\"Too many login attempts. Try again in 1 minute.\"}");
+            response.getWriter().write("{\"error\":\"Too many attempts. Try again in 1 minute.\"}");
         }
     }
 

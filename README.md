@@ -25,11 +25,14 @@ Browser
 
 - **First visit** asks "¿Quién eres?" (Ale / Fabita Rumana Portillo) and
   remembers the answer in that browser, so the same URL works for both.
-- Opens on the **last tab for the current calendar month**, last week in it.
-  The coach names tabs freely (`Sep`, `Sept`, `Septi`, `Agos`…); any prefix
+- Opens on **the week that contains today**. Each week shows its dates
+  ("Semana 4 · 21 – 27 sep"): the sheet has none, so "Semana 1" is taken as
+  the week holding the 1st of the month and each next week is 7 days later.
+  If today's week isn't written yet, it falls back to the last week of this
+  month's tab, then to the newest week in the sheet.
+- The coach names tabs freely (`Sep`, `Sept`, `Septi`, `Agos`…); any prefix
   of a Spanish month name works, and it is shown as "Septiembre 2026" — the
-  year is inferred from tab order since titles don't carry it. If the month
-  has no tab yet, it shows the newest week in the sheet.
+  year is inferred from tab order since titles don't carry it.
 - One card per day (`Dia 1`, `Dia 2`…), split into **Estructura / Fuerza / WOD**
   by the same heuristics as the sheet layout, with the `N RxC` badge.
 - ◀ ▶ to browse previous weeks.

@@ -1,62 +1,45 @@
 # CrossFit App — Claude Instructions
 
+## What this project is
+
+A single-screen web app that shows my current training week from my coach's
+Google Sheet. Live at `https://ajenux.github.io/crossfit-app`. No login, no
+backend, no paid hosting. That is the whole goal — do not expand it.
+
+Read `README.md` first; it describes exactly what is deployed and how.
+
+## What matters
+
+- `tools/sheet_to_json.py` — reads the sheet, writes `workouts.json`
+- `mobile/lib/main_week.dart` + `mobile/lib/week/week_app.dart` — the viewer
+- `.github/workflows/deploy-web.yml` — builds and deploys to GitHub Pages
+  (push to `master`, daily cron 05:00 UTC, or manual)
+
+Everything else in the repo (`src/`, the login/coach/athlete Flutter screens,
+`ARCHITECTURE.md`, `DEPLOY.md`, most of `PLAN.md`) is the legacy multi-user
+version with a Spring Boot backend. It is **not deployed** and not on the
+critical path. Don't touch it unless the user asks for it explicitly.
+
 ## Start of every session
 
-1. Read `PLAN.md` — it is the source of truth for what is done and what is pending.
-2. Run `git log --oneline -5` to see the latest commits.
-3. Ask the user where they want to pick up.
-
-## Project summary
-
-Spring Boot 4 REST API + Flutter mobile app for managing CrossFit coaches, athletes, and workouts.
-
-- Backend: Java 21, Spring Security + JWT, Spring Data JPA, PostgreSQL
-- Frontend: Flutter (go_router, SharedPreferences, http)
-- AI: Ollama (exercise assistant + workout generator)
-- Auth: stateless JWT, roles COACH / ATHLETE
-
-Key files:
-- `src/main/java/com/example/demo/` — backend source
-- `mobile/lib/` — Flutter source
-- `PLAN.md` — task tracker (done / pending / key decisions)
-- `CHANGELOG.md` — feature history by phase
-- `ARCHITECTURE.md` — full system documentation
-
-## Local development
-
-Both local and production run with `SPRING_PROFILES_ACTIVE=demo` so behaviour is identical.
-
-**First-time setup:**
-```bash
-cp .env.example .env          # fill in JWT_SECRET and GOOGLE_CREDENTIALS_JSON
-docker-compose up -d          # start Postgres (port 5432)
-```
-
-**Run the backend:**
-```bash
-./start-local.sh
-```
-Google credentials are read from `.google-credentials.json` (not from `.env`) to avoid shell escaping issues with the JSON private key.
-
-**Run the Flutter app:**
-```bash
-cd mobile && flutter run
-```
-
-**Stop Postgres:**
-```bash
-docker-compose down
-```
-
-Demo accounts seeded automatically on first start:
-- `coach@demo.com` / `Demo1234`
-- `athlete1@demo.com` / `Demo1234`
-- `athlete2@demo.com` / `Demo1234`
+1. Read `README.md`.
+2. Run `git log --oneline -5`.
+3. Ask the user what they want. Don't propose new features.
 
 ## Rules
 
-- Always work on `develop`. Merge to `master` only when confirmed working.
-- Write all code comments, commit messages, PR descriptions, and docs in English.
-- Never stage or commit without asking the user first.
-- Before pushing to develop, run `./scripts/update-plan.sh` to keep PLAN.md current.
-- The `prepare-commit-msg` hook generates AI-assisted commit messages automatically.
+- Work on `develop`; merge to `master` only when the change is verified
+  (build passes, page checked in the browser). Pushing to `master` deploys.
+- Never stage, commit or push without asking the user first.
+- Verify against the real sheet (`.google-credentials.json` is local and
+  gitignored) before claiming something works. Don't assume tab names or
+  dates — check them.
+- If something in the sheet is skipped or ignored, say so; never drop data
+  silently.
+- Code comments, commit messages and docs in English. Talk to the user in
+  the language they use.
+- Keep changes small. One screen, one script, one workflow.
+
+## Local run
+
+See "Run locally" in `README.md`.

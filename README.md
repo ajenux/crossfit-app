@@ -1,167 +1,94 @@
-# CrossFit App - Backend API
+# Mi semana — CrossFit training viewer
 
-A REST API for managing CrossFit coaches, athletes, and workouts, built with Spring Boot.
+A single-screen web app that shows my current training week from my coach's
+Google Sheet, so I don't have to open the sheet itself.
 
-## Tech Stack
+**Live:** https://ajenux.github.io/crossfit-app
 
-- **Java 21**
-- **Spring Boot 4**
-- **Spring Security + JWT**
-- **Spring Data JPA + Hibernate**
-- **PostgreSQL**
-- **Lombok**
-- **Flutter** (mobile frontend - in progress)
+No login, no backend, no paid hosting. The whole thing is a static page on
+GitHub Pages plus a scheduled GitHub Action.
 
-## Prerequisites
+## How it works
 
-- Java 21+
-- Maven
-- PostgreSQL 17+
+```
+GitHub Action (push to master · daily 05:00 UTC · manual)
+   ├─ tools/sheet_to_json.py  reads the sheet with a service account
+   │                          and writes workouts.json
+   └─ flutter build web       builds mobile/lib/main_week.dart
+                              and publishes both to GitHub Pages
 
-## Database Setup
-
-```sql
-CREATE USER crossfit_user WITH PASSWORD 'crossfit123';
-CREATE DATABASE crossfit_db OWNER crossfit_user;
+Browser
+   └─ loads workouts.json and shows the current week
 ```
 
-## Configuration
+### What the page does
 
-Edit `src/main/resources/application.properties`:
+- Opens on the **last tab for the current calendar month**, last week in it.
+  The coach names tabs freely (`Sep`, `Sept`, `Septi`, `Agos`…); any prefix
+  of a Spanish month name works. If the month has no tab yet, it shows the
+  newest week in the sheet.
+- One card per day (`Dia 1`, `Dia 2`…), split into **Estructura / Fuerza / WOD**
+  by the same heuristics as the sheet layout, with the `N RxC` badge.
+- ◀ ▶ to browse previous weeks.
+- **Pesos** selector: the sheet writes weights as `(X/Y)` for two athletes;
+  pick `1º` or `2º` to see only yours. Remembered in the browser.
+- A checkbox per day to mark it done. Also stored in the browser only.
+- Always fetches fresh data (cache-busting query, no service worker).
 
-```properties
-spring.datasource.url=jdbc:postgresql://localhost:5432/crossfit_db
-spring.datasource.username=crossfit_user
-spring.datasource.password=crossfit123
+### Sheet format expected
 
-jwt.secret=your-secret-key-at-least-256-bits-long
-jwt.expiration-ms=86400000
+One tab per month. Inside a tab, a week starts at a row whose column A is
+`Dia 1`, optionally preceded by a `Semana N` label row. Each day takes two
+columns (main block + WOD block). See `tools/sheet_to_json.py` for the exact
+rules.
+
+## Repository layout
+
+| Path | What |
+|---|---|
+| `tools/sheet_to_json.py` | Sheet → `workouts.json` (Python, Google Sheets API v4) |
+| `mobile/lib/main_week.dart`, `mobile/lib/week/` | The viewer (Flutter web) |
+| `.github/workflows/deploy-web.yml` | Build + deploy to GitHub Pages |
+| `src/`, `mobile/lib/{screens,services,models}` | Legacy Spring Boot backend and multi-user Flutter app — **not deployed**, kept for reference (see `ARCHITECTURE.md`) |
+
+## Setup
+
+Only one secret is needed in the GitHub repo:
+
+```
+gh secret set GOOGLE_CREDENTIALS_JSON < .google-credentials.json
 ```
 
-## Running the App
+That is the Google service account JSON that has read access to the sheet.
+The spreadsheet ID defaults to the coach's sheet; override with the
+`GOOGLE_SHEETS_SPREADSHEET_ID` env var in the workflow if it changes.
+
+## Run locally
 
 ```bash
-./mvnw spring-boot:run
+# 1. Generate the JSON from the real sheet
+python3 -m venv .venv && .venv/bin/pip install google-auth requests
+.venv/bin/python tools/sheet_to_json.py --credentials .google-credentials.json workouts.json
+
+# 2. Build the viewer and serve it
+cd mobile
+flutter build web --release -t lib/main_week.dart --pwa-strategy=none --base-href=/
+cp ../workouts.json build/web/
+python3 -m http.server 8765 --directory build/web
+# open http://localhost:8765
 ```
 
-App runs on `http://localhost:8080`.
+## Deploy
 
-## Authentication
+Push to `master`, or trigger manually:
 
-All `/api/**` endpoints require a JWT token except `/api/auth/**`.
-
-### Register
-
-```http
-POST /api/auth/register
-Content-Type: application/json
-
-{
-  "email": "coach@example.com",
-  "password": "yourpassword",
-  "role": "COACH"
-}
+```bash
+gh workflow run deploy-web.yml --ref master
 ```
 
-Roles: `COACH`, `ATHLETE`
+The cron run every morning picks up whatever the coach added to the sheet.
 
-### Login
+## Branching
 
-```http
-POST /api/auth/login
-Content-Type: application/json
-
-{
-  "email": "coach@example.com",
-  "password": "yourpassword"
-}
-```
-
-Both return a token:
-
-```json
-{ "token": "eyJ..." }
-```
-
-Use it in all subsequent requests:
-
-```
-Authorization: Bearer eyJ...
-```
-
-## API Endpoints
-
-### Coaches
-
-| Method | URL | Description |
-|--------|-----|-------------|
-| GET | `/api/coaches` | List all coaches |
-| GET | `/api/coaches/{id}` | Get coach by ID |
-| POST | `/api/coaches` | Create coach |
-| PUT | `/api/coaches/{id}` | Update coach |
-| DELETE | `/api/coaches/{id}` | Delete coach |
-
-**Create coach example:**
-```json
-{ "name": "John", "email": "john@crossfit.com" }
-```
-
-### Athletes
-
-| Method | URL | Description |
-|--------|-----|-------------|
-| GET | `/api/athletes` | List all athletes |
-| GET | `/api/athletes?coachId=1` | List athletes by coach |
-| GET | `/api/athletes/{id}` | Get athlete by ID |
-| POST | `/api/athletes` | Create athlete |
-| PUT | `/api/athletes/{id}` | Update athlete |
-| DELETE | `/api/athletes/{id}` | Delete athlete |
-
-**Create athlete example:**
-```json
-{ "name": "Maria", "email": "maria@crossfit.com", "coachId": 1 }
-```
-
-### Workouts
-
-| Method | URL | Description |
-|--------|-----|-------------|
-| GET | `/api/workouts` | List all workouts |
-| GET | `/api/workouts?athleteId=1` | Workouts for an athlete |
-| GET | `/api/workouts?coachId=1` | Workouts by a coach |
-| GET | `/api/workouts/{id}` | Get workout by ID |
-| POST | `/api/workouts` | Create workout |
-| PUT | `/api/workouts/{id}` | Update workout |
-| DELETE | `/api/workouts/{id}` | Delete workout |
-
-**Workout types:** `AMRAP`, `FOR_TIME`, `EMOM`, `STRENGTH`, `ENDURANCE`
-
-**Create workout example:**
-```json
-{
-  "name": "Fran",
-  "description": "21-15-9 Thrusters and Pull-ups",
-  "type": "FOR_TIME",
-  "scheduledDate": "2026-04-06",
-  "athleteId": 1,
-  "coachId": 1
-}
-```
-
-## Project Structure
-
-```
-src/main/java/com/example/demo/
-├── config/          # Security and app configuration
-├── controller/      # REST controllers (HTTP layer)
-├── dto/             # Request and response objects
-├── model/           # JPA entities
-├── repository/      # Database access (Spring Data)
-├── security/        # JWT filter and service
-└── service/         # Business logic
-```
-
-## Branching Strategy
-
-- `master` — stable releases only
-- `develop` — active development branch
+- `develop` — work here
+- `master` — what is deployed

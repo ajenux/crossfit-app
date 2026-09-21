@@ -83,7 +83,9 @@ class _WeekScreenState extends State<WeekScreen> {
       _weightIndex = _prefs!.getInt(_prefWeight) ?? -1;
       _done = (_prefs!.getStringList('week.done') ?? []).toSet();
 
-      final res = await http.get(Uri.base.resolve('workouts.json'));
+      // GitHub Pages caches for 10 minutes; a unique query string bypasses it.
+      final res = await http.get(Uri.base.resolve(
+          'workouts.json?t=${DateTime.now().millisecondsSinceEpoch}'));
       if (res.statusCode != 200) {
         throw Exception('workouts.json -> HTTP ${res.statusCode}');
       }

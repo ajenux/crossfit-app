@@ -62,7 +62,8 @@ class _WeekScreenState extends State<WeekScreen> {
   String? _error;
   bool _loading = true;
 
-  // -1 = show both weights as written in the sheet, 0 = first, 1 = second.
+  // -1 = show both weights as written in the sheet,
+  // 0 = Ale (the heavier of the pair), 1 = Fabita (the lighter).
   int _weightIndex = -1;
   Set<String> _done = {};
   SharedPreferences? _prefs;
@@ -94,7 +95,7 @@ class _WeekScreenState extends State<WeekScreen> {
       for (final tab in data['tabs'] as List) {
         for (final w in tab['weeks'] as List) {
           weeks.add(_Week(
-            tab: tab['title'] as String,
+            tab: (tab['name'] ?? tab['title']) as String,
             month: tab['month'] as int,
             label: w['label'] as String,
             days: [
@@ -253,20 +254,19 @@ class _WeightSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    const options = [(-1, 'Ambos'), (0, 'Ale'), (1, 'Fabita Rumana Portillo')];
+    return Wrap(
+      spacing: 8,
+      runSpacing: 4,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         Text('Pesos', style: Theme.of(context).textTheme.labelLarge),
-        const SizedBox(width: 12),
-        SegmentedButton<int>(
-          showSelectedIcon: false,
-          segments: const [
-            ButtonSegment(value: -1, label: Text('Ambos')),
-            ButtonSegment(value: 0, label: Text('1º')),
-            ButtonSegment(value: 1, label: Text('2º')),
-          ],
-          selected: {value},
-          onSelectionChanged: (s) => onChanged(s.first),
-        ),
+        for (final (v, label) in options)
+          ChoiceChip(
+            label: Text(label),
+            selected: value == v,
+            onSelected: (_) => onChanged(v),
+          ),
       ],
     );
   }
@@ -294,10 +294,18 @@ class _DayCard extends StatelessWidget {
     required this.onToggle,
   });
 
+  /// Keeps the heavier weight of each "(X/Y)" pair for Ale and the lighter
+  /// one for Fabita, regardless of the order the coach wrote them in.
   String _applyWeights(String text) {
     if (weightIndex < 0) return text;
-    return text.replaceAllMapped(
-        _weights, (m) => '(${weightIndex == 0 ? m[1] : m[2]})');
+    return text.replaceAllMapped(_weights, (m) {
+      final a = m[1]!, b = m[2]!;
+      final na = double.tryParse(a.replaceAll(',', '.')) ?? 0;
+      final nb = double.tryParse(b.replaceAll(',', '.')) ?? 0;
+      final heavier = na >= nb ? a : b;
+      final lighter = na >= nb ? b : a;
+      return '(${weightIndex == 0 ? heavier : lighter})';
+    });
   }
 
   @override

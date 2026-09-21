@@ -166,6 +166,33 @@ def parse_weeks(rows):
     return weeks
 
 
+MONTH_DISPLAY = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio",
+                 "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+
+
+def assign_years(tabs):
+    """Fills in `year` and a display `name` ("Septiembre 2026") for every tab.
+
+    Tab titles rarely carry a year, but tabs are in chronological order, so:
+    the newest tab belongs to the current year (or the previous one if its
+    month is still ahead of today), and walking backwards the year drops by
+    one each time the month number goes up (Enero <- Diciembre).
+    """
+    if not tabs:
+        return
+    today = dt.date.today()
+    year = tabs[-1]["year"] or (today.year if tabs[-1]["month"] <= today.month else today.year - 1)
+    prev_month = None
+    for tab in reversed(tabs):
+        if tab["year"] is not None:
+            year = tab["year"]
+        elif prev_month is not None and tab["month"] > prev_month:
+            year -= 1
+        tab["year"] = year
+        tab["name"] = f"{MONTH_DISPLAY[tab['month'] - 1]} {year}"
+        prev_month = tab["month"]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("output")
@@ -186,6 +213,8 @@ def main():
         if not weeks:
             continue
         tabs.append({"title": title, "month": my[0], "year": my[1], "weeks": weeks})
+
+    assign_years(tabs)
 
     result = {
         "generatedAt": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),

@@ -15,9 +15,11 @@ Sheet without opening the sheet. One screen, no login, no backend, no paid hosti
       service account and writes `workouts.json` (weeks, days, section markers)
 - [x] Month tabs matched by prefix (`Sep`, `Sept`, `Septi`, `Agos`…); skipped
       tabs are logged, never dropped silently
-- [x] Viewer (`mobile/lib/week/`) — opens on the last tab of the current
-      calendar month, last week; ◀ ▶ to browse; Estructura / Fuerza / WOD
-      sections; `N RxC` badge; done checkbox per day
+- [x] Viewer (`mobile/lib/week/`) — opens on the week containing today;
+      ◀ ▶ to browse; Estructura / Fuerza / WOD sections; `N RxC` badge; done
+      checkbox per day
+- [x] Week dates next to the label ("Semana 4 · 21 – 27 sep") — Semana 1 =
+      week holding the 1st of the month, +7 days per week
 - [x] Tabs shown as "Septiembre 2026" — year inferred from tab order
 - [x] Weights by person: first visit asks "¿Quién eres?" (Ale / Fabita Rumana
       Portillo), saved in the browser; Ale = heavier of each `(X/Y)`, Fabita =
@@ -36,7 +38,7 @@ Sheet without opening the sheet. One screen, no login, no backend, no paid hosti
 
 ## Ideas (only if they turn out to matter)
 
-- Show the date range of the week next to "Semana N"
+- (none right now)
 
 ---
 
@@ -50,5 +52,6 @@ Sheet without opening the sheet. One screen, no login, no backend, no paid hosti
 | No remembered position | The page must always open on this week; browsing history was noise |
 | Who-am-I and done state in the browser | Two people, each on their own phone; a shared store would be a backend again |
 | Weight by value, not by column position | "Ale gets the heavier one" is the actual rule; it survives the coach writing the pair the other way round |
+| "Semana 1" = week containing the 1st of the month | Checked against the sheet: today (Mon 2026-09-21) is the coach's Semana 4 of September, which only fits this convention; it also explains why months have 4–5 weeks |
 | Year inferred from tab order | Tab titles have no year; walking backwards and decrementing when the month goes up is unambiguous for a sheet kept in order |
 | Backend and multi-user app deleted from the repo (2026-09-21) | They were not deployed and only added noise; the history is still in git if ever needed |

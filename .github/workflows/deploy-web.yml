@@ -56,7 +56,7 @@ jobs:
         working-directory: mobile
         run: |
           flutter build web --release \
-            -t lib/main_week.dart \
+            -t lib/main.dart \
             --pwa-strategy=none \
             --base-href=/crossfit-app/
           cp ../workouts.json build/web/workouts.json

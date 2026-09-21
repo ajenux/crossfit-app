@@ -47,4 +47,4 @@ opening the sheet. One screen, no login, no backend, no paid hosting.
 | Current week = last tab of the current month | The coach abbreviates tab names and sometimes repeats a month; matching by calendar month and taking the last one is what a person would do |
 | No remembered position | The page must always open on this week; browsing history was noise |
 | Done state and weight preference in the browser | Only one person uses it; a shared store would be a backend again |
-| Legacy backend kept in `src/` but not deployed | Reference only; the Railway service is gone and won't come back for a one-user app |
+| Backend and multi-user app deleted from the repo (2026-09-21) | They were not deployed and only added noise; the history is still in git if ever needed |

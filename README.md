@@ -1,7 +1,7 @@
 # Mi semana — CrossFit training viewer
 
-A single-screen web app that shows my current training week from my coach's
-Google Sheet, so I don't have to open the sheet itself.
+A single-screen web app that shows the current training week from our coach's
+Google Sheet, so Ale and Fabita don't have to open the sheet itself.
 
 **Live:** https://ajenux.github.io/crossfit-app
 
@@ -23,15 +23,19 @@ Browser
 
 ### What the page does
 
+- **First visit** asks "¿Quién eres?" (Ale / Fabita Rumana Portillo) and
+  remembers the answer in that browser, so the same URL works for both.
 - Opens on the **last tab for the current calendar month**, last week in it.
   The coach names tabs freely (`Sep`, `Sept`, `Septi`, `Agos`…); any prefix
-  of a Spanish month name works. If the month has no tab yet, it shows the
-  newest week in the sheet.
+  of a Spanish month name works, and it is shown as "Septiembre 2026" — the
+  year is inferred from tab order since titles don't carry it. If the month
+  has no tab yet, it shows the newest week in the sheet.
 - One card per day (`Dia 1`, `Dia 2`…), split into **Estructura / Fuerza / WOD**
   by the same heuristics as the sheet layout, with the `N RxC` badge.
 - ◀ ▶ to browse previous weeks.
-- **Pesos** selector: the sheet writes weights as `(X/Y)` for two athletes;
-  pick `1º` or `2º` to see only yours. Remembered in the browser.
+- **Pesos** chips: the sheet writes weights as `(X/Y)`; **Ale** gets the
+  heavier of each pair, **Fabita** the lighter (by value, not position), and
+  **Ambos** shows the pair as written. Changing it updates the saved choice.
 - A checkbox per day to mark it done. Also stored in the browser only.
 - Always fetches fresh data (cache-busting query, no service worker).
 

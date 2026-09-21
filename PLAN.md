@@ -1,7 +1,7 @@
 # Plan — Mi semana
 
-Goal: see my current training week from my coach's Google Sheet without
-opening the sheet. One screen, no login, no backend, no paid hosting.
+Goal: Ale and Fabita see their current training week from the coach's Google
+Sheet without opening the sheet. One screen, no login, no backend, no paid hosting.
 
 **Live:** https://ajenux.github.io/crossfit-app
 **Branch:** `develop` (merge to `master` deploys)
@@ -17,8 +17,11 @@ opening the sheet. One screen, no login, no backend, no paid hosting.
       tabs are logged, never dropped silently
 - [x] Viewer (`mobile/lib/week/`) — opens on the last tab of the current
       calendar month, last week; ◀ ▶ to browse; Estructura / Fuerza / WOD
-      sections; `N RxC` badge; weight selector (`Ambos / 1º / 2º`); done
-      checkbox per day — preferences stored in the browser
+      sections; `N RxC` badge; done checkbox per day
+- [x] Tabs shown as "Septiembre 2026" — year inferred from tab order
+- [x] Weights by person: first visit asks "¿Quién eres?" (Ale / Fabita Rumana
+      Portillo), saved in the browser; Ale = heavier of each `(X/Y)`, Fabita =
+      lighter; chips to change it later
 - [x] Always fresh: cache-busting fetch of the JSON, built with
       `--pwa-strategy=none` (no service worker)
 - [x] GitHub Action: generates the JSON and deploys on push to `master`,
@@ -33,7 +36,6 @@ opening the sheet. One screen, no login, no backend, no paid hosting.
 
 ## Ideas (only if they turn out to matter)
 
-- Pick a default weight column once I know which one is mine (`1º` or `2º`)
 - Show the date range of the week next to "Semana N"
 
 ---
@@ -46,5 +48,7 @@ opening the sheet. One screen, no login, no backend, no paid hosting.
 | Python script for the parser | ~150 lines, runs in the Action in seconds with two pip packages; no need to build the Java project to read a sheet |
 | Current week = last tab of the current month | The coach abbreviates tab names and sometimes repeats a month; matching by calendar month and taking the last one is what a person would do |
 | No remembered position | The page must always open on this week; browsing history was noise |
-| Done state and weight preference in the browser | Only one person uses it; a shared store would be a backend again |
+| Who-am-I and done state in the browser | Two people, each on their own phone; a shared store would be a backend again |
+| Weight by value, not by column position | "Ale gets the heavier one" is the actual rule; it survives the coach writing the pair the other way round |
+| Year inferred from tab order | Tab titles have no year; walking backwards and decrementing when the month goes up is unambiguous for a sheet kept in order |
 | Backend and multi-user app deleted from the repo (2026-09-21) | They were not deployed and only added noise; the history is still in git if ever needed |

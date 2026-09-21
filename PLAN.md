@@ -7,11 +7,19 @@ Updated whenever a phase is completed or started.
 
 ## Current status
 **Active branch:** `develop`
-**Last updated:** 2026-07-11 (session 10)
-**Production:**
-- Backend: `https://crossfit-app-production-fcf2.up.railway.app` (Railway + PostgreSQL)
-- Frontend: `https://ajenux.github.io/crossfit-app` (GitHub Pages, auto-deploy on push to master)
-- Full flow tested and working: register, login, assign athlete, create workout, athlete dashboard
+**Last updated:** 2026-09-21 (session 11)
+
+**What is actually deployed:** a backend-free week viewer at
+`https://ajenux.github.io/crossfit-app`. A GitHub Action reads the coach's
+Google Sheet (`tools/sheet_to_json.py`), writes `workouts.json` and deploys it
+with `mobile/lib/main_week.dart`. Runs on push to `master` and daily at 05:00 UTC.
+Needs the `GOOGLE_CREDENTIALS_JSON` repo secret.
+
+**Goal (restated):** see my own training week without opening the sheet. Nothing else.
+
+**Not deployed anymore:** the Spring Boot backend (Railway service is gone —
+no paid hosting for a single user) and the login/coach/athlete Flutter app.
+The code stays in the repo but is not on the critical path.
 
 ---
 

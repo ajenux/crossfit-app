@@ -193,6 +193,26 @@ def assign_years(tabs):
         prev_month = tab["month"]
 
 
+WEEK_NUMBER = re.compile(r"semana\s*(\d+)", re.I)
+
+
+def assign_dates(tab):
+    """Adds `start`/`end` (ISO dates, Monday to Sunday) to each week of a tab.
+
+    The coach's "Semana 1" is the week containing the 1st of the month, and
+    each following "Semana N" is 7 days later. When a label has no number,
+    the week's position in the tab is used.
+    """
+    first = dt.date(tab["year"], tab["month"], 1)
+    week1_monday = first - dt.timedelta(days=first.weekday())
+    for i, week in enumerate(tab["weeks"]):
+        m = WEEK_NUMBER.match(week["label"])
+        n = int(m.group(1)) if m else i + 1
+        start = week1_monday + dt.timedelta(days=7 * (n - 1))
+        week["start"] = start.isoformat()
+        week["end"] = (start + dt.timedelta(days=6)).isoformat()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("output")
@@ -215,6 +235,8 @@ def main():
         tabs.append({"title": title, "month": my[0], "year": my[1], "weeks": weeks})
 
     assign_years(tabs)
+    for tab in tabs:
+        assign_dates(tab)
 
     result = {
         "generatedAt": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),

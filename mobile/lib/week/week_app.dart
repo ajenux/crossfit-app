@@ -32,9 +32,10 @@ class WeekApp extends StatelessWidget {
 
 class _Week {
   final String tab;
+  final int month;
   final String label;
   final List<_Day> days;
-  _Week({required this.tab, required this.label, required this.days});
+  _Week({required this.tab, required this.month, required this.label, required this.days});
 
   String get key => '$tab|$label';
 }
@@ -93,6 +94,7 @@ class _WeekScreenState extends State<WeekScreen> {
         for (final w in tab['weeks'] as List) {
           weeks.add(_Week(
             tab: tab['title'] as String,
+            month: tab['month'] as int,
             label: w['label'] as String,
             days: [
               for (final d in w['days'] as List)
@@ -101,9 +103,9 @@ class _WeekScreenState extends State<WeekScreen> {
           ));
         }
       }
-      // Remember where the user was, but never point past the newest week.
+      var idx = _currentWeekIndex(weeks);
+      // Keep the week the user was browsing, if the sheet still has it.
       final saved = _prefs!.getString(_prefPos);
-      var idx = weeks.length - 1;
       if (saved != null) {
         final found = weeks.indexWhere((w) => w.key == saved);
         if (found >= 0) idx = found;
@@ -120,6 +122,15 @@ class _WeekScreenState extends State<WeekScreen> {
         _loading = false;
       });
     }
+  }
+
+  /// The current week is the last week of the last tab for this calendar
+  /// month, whatever the coach named it ("Sep", "Sept", "Septi"...). If there
+  /// is no tab for this month yet, fall back to the newest week in the sheet.
+  static int _currentWeekIndex(List<_Week> weeks) {
+    final month = DateTime.now().month;
+    final idx = weeks.lastIndexWhere((w) => w.month == month);
+    return idx >= 0 ? idx : weeks.length - 1;
   }
 
   void _go(int delta) {

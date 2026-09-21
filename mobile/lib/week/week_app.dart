@@ -81,6 +81,7 @@ class _WeekScreenState extends State<WeekScreen> {
     });
     try {
       _prefs ??= await SharedPreferences.getInstance();
+      final firstVisit = !_prefs!.containsKey(_prefWeight);
       _weightIndex = _prefs!.getInt(_prefWeight) ?? -1;
       _done = (_prefs!.getStringList('week.done') ?? []).toSet();
 
@@ -111,6 +112,7 @@ class _WeekScreenState extends State<WeekScreen> {
         _generatedAt = data['generatedAt'] as String?;
         _loading = false;
       });
+      if (firstVisit && mounted) _askWhoIsThis();
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -132,6 +134,30 @@ class _WeekScreenState extends State<WeekScreen> {
     final next = _index + delta;
     if (next < 0 || next >= _weeks.length) return;
     setState(() => _index = next);
+  }
+
+  /// First visit on this browser: ask who is reading so the right weight
+  /// column is shown from now on. The chips let anyone change it later.
+  Future<void> _askWhoIsThis() async {
+    final picked = await showDialog<int>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Quién eres?'),
+        content: const Text('Para mostrarte tus pesos. Lo puedes cambiar luego arriba.'),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, 0),
+            child: const Text('Ale'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, 1),
+            child: const Text('Fabita Rumana Portillo'),
+          ),
+        ],
+      ),
+    );
+    if (picked != null) _setWeight(picked);
   }
 
   void _setWeight(int value) {

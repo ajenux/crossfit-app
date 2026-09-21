@@ -34,10 +34,31 @@ class _Week {
   final String tab;
   final int month;
   final String label;
+  final DateTime start;
+  final DateTime end;
   final List<_Day> days;
-  _Week({required this.tab, required this.month, required this.label, required this.days});
+  _Week({
+    required this.tab,
+    required this.month,
+    required this.label,
+    required this.start,
+    required this.end,
+    required this.days,
+  });
 
   String get key => '$tab|$label';
+
+  bool contains(DateTime d) =>
+      !d.isBefore(start) && d.isBefore(end.add(const Duration(days: 1)));
+
+  /// "21 – 27 sep" or "28 sep – 4 oct" when the week straddles two months.
+  String get dateRange {
+    const m = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    if (start.month == end.month) {
+      return '${start.day} – ${end.day} ${m[end.month - 1]}';
+    }
+    return '${start.day} ${m[start.month - 1]} – ${end.day} ${m[end.month - 1]}';
+  }
 }
 
 class _Day {
@@ -99,6 +120,8 @@ class _WeekScreenState extends State<WeekScreen> {
             tab: (tab['name'] ?? tab['title']) as String,
             month: tab['month'] as int,
             label: w['label'] as String,
+            start: DateTime.parse(w['start'] as String),
+            end: DateTime.parse(w['end'] as String),
             days: [
               for (final d in w['days'] as List)
                 _Day(number: d['day'] as int, content: d['content'] as String),
@@ -121,12 +144,13 @@ class _WeekScreenState extends State<WeekScreen> {
     }
   }
 
-  /// The current week is the last week of the last tab for this calendar
-  /// month, whatever the coach named it ("Sep", "Sept", "Septi"...). If there
-  /// is no tab for this month yet, fall back to the newest week in the sheet.
+  /// The week whose dates contain today. If the coach hasn't written it yet,
+  /// the last week of this calendar month's tab; failing that, the newest week.
   static int _currentWeekIndex(List<_Week> weeks) {
-    final month = DateTime.now().month;
-    final idx = weeks.lastIndexWhere((w) => w.month == month);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    var idx = weeks.lastIndexWhere((w) => w.contains(today));
+    if (idx < 0) idx = weeks.lastIndexWhere((w) => w.month == today.month);
     return idx >= 0 ? idx : weeks.length - 1;
   }
 
@@ -211,7 +235,8 @@ class _WeekScreenState extends State<WeekScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(week.label, style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text('${week.label} · ${week.dateRange}',
+                style: const TextStyle(fontWeight: FontWeight.bold)),
             Text(week.tab, style: Theme.of(context).textTheme.bodySmall),
           ],
         ),

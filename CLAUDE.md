@@ -11,14 +11,9 @@ Read `README.md` first; it describes exactly what is deployed and how.
 ## What matters
 
 - `tools/sheet_to_json.py` — reads the sheet, writes `workouts.json`
-- `mobile/lib/main_week.dart` + `mobile/lib/week/week_app.dart` — the viewer
+- `mobile/lib/main.dart` + `mobile/lib/week/week_app.dart` — the viewer
 - `.github/workflows/deploy-web.yml` — builds and deploys to GitHub Pages
   (push to `master`, daily cron 05:00 UTC, or manual)
-
-Everything else in the repo (`src/`, the login/coach/athlete Flutter screens,
-`ARCHITECTURE.md`, `DEPLOY.md`, most of `PLAN.md`) is the legacy multi-user
-version with a Spring Boot backend. It is **not deployed** and not on the
-critical path. Don't touch it unless the user asks for it explicitly.
 
 ## Start of every session
 

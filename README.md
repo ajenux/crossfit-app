@@ -14,7 +14,7 @@ GitHub Pages plus a scheduled GitHub Action.
 GitHub Action (push to master · daily 05:00 UTC · manual)
    ├─ tools/sheet_to_json.py  reads the sheet with a service account
    │                          and writes workouts.json
-   └─ flutter build web       builds mobile/lib/main_week.dart
+   └─ flutter build web       builds mobile/lib/main.dart
                               and publishes both to GitHub Pages
 
 Browser
@@ -47,9 +47,8 @@ rules.
 | Path | What |
 |---|---|
 | `tools/sheet_to_json.py` | Sheet → `workouts.json` (Python, Google Sheets API v4) |
-| `mobile/lib/main_week.dart`, `mobile/lib/week/` | The viewer (Flutter web) |
+| `mobile/lib/main.dart`, `mobile/lib/week/` | The viewer (Flutter web) |
 | `.github/workflows/deploy-web.yml` | Build + deploy to GitHub Pages |
-| `src/`, `mobile/lib/{screens,services,models}` | Legacy Spring Boot backend and multi-user Flutter app — **not deployed**, kept for reference (see `ARCHITECTURE.md`) |
 
 ## Setup
 
@@ -72,7 +71,7 @@ python3 -m venv .venv && .venv/bin/pip install google-auth requests
 
 # 2. Build the viewer and serve it
 cd mobile
-flutter build web --release -t lib/main_week.dart --pwa-strategy=none --base-href=/
+flutter build web --release --pwa-strategy=none --base-href=/
 cp ../workouts.json build/web/
 python3 -m http.server 8765 --directory build/web
 # open http://localhost:8765

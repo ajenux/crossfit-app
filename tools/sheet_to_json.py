@@ -33,28 +33,27 @@ API = "https://sheets.googleapis.com/v4/spreadsheets"
 WOD_HEADER = re.compile(r".*(amrap|emom|for time|rxt|a completar|chipper|\d+(-\d+){2,}).*", re.I)
 SEMANA_LABEL = re.compile(r"^semana\s*\d+.*$", re.I)
 
-MONTHS = {
-    "enero": 1,
-    "feb": 2, "febrero": 2,
-    "mar": 3, "marzo": 3, "marz": 3,
-    "abr": 4, "abril": 4, "abri": 4,
-    "may": 5, "mayo": 5, "maio": 5,
-    "jun": 6, "junio": 6,
-    "jul": 7, "julio": 7,
-    "ago": 8, "agosto": 8, "agost": 8,
-    "sep": 9, "sept": 9, "septiembre": 9,
-    "oct": 10, "octu": 10, "octubre": 10,
-    "nov": 11, "noviembre": 11,
-    "dic": 12, "diciembre": 12,
-}
+MONTH_NAMES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
+               "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+MONTH_ALIASES = {"maio": 5, "setiembre": 9}
 
 
 def month_of_tab(title):
-    """Returns (month, year) for a tab title like 'Junio 2026' or 'maio', or None."""
+    """Returns (month, year) for a tab title, or None.
+
+    The coach abbreviates freely ('Sep', 'Sept', 'Septi', 'Agos', 'Juni'), so
+    any first word of 3+ letters that is a prefix of a month name matches.
+    """
     parts = title.strip().lower().split()
     if not parts:
         return None
-    month = MONTHS.get(parts[0])
+    word = parts[0]
+    month = MONTH_ALIASES.get(word)
+    if month is None and len(word) >= 3:
+        for i, name in enumerate(MONTH_NAMES, start=1):
+            if name.startswith(word):
+                month = i
+                break
     if month is None:
         return None
     year = None
@@ -180,6 +179,7 @@ def main():
     for title in titles:
         my = month_of_tab(title)
         if my is None:
+            print(f"skipping tab {title!r}: not a month name")
             continue
         rows = sheet_rows(creds, title)
         weeks = parse_weeks(rows)

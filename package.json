@@ -1,0 +1,12 @@
+{
+  "name": "crossfit-app-e2e",
+  "private": true,
+  "description": "End-to-end check of the published week viewer, the Apps Script and the sheet",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "dotenv": "^18.0.4"
+  }
+}

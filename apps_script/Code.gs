@@ -3,32 +3,35 @@
  */
 
 /**
- * Write-back for the week viewer, bound to the coach's training sheet.
+ * Write side of the week viewer. Bound to our own spreadsheet
+ * ("Mi semana — datos"), never to the coach's training sheet: that one is
+ * only ever read, by the daily build. With @OnlyCurrentDoc this script can't
+ * even open another spreadsheet.
  *
- * Install: in the sheet, Extensions > Apps Script, paste this file, set the
- * script property COACH_PIN, then Deploy > New deployment > Web app
- * (Execute as: Me, Who has access: Anyone). See README "Notes and coach edits".
+ * Install: in the datos spreadsheet, Extensions > Apps Script, paste this
+ * file, set the script property COACH_PIN, then Deploy > New deployment >
+ * Web app (Execute as: Me, Who has access: Anyone). See README.
  *
- * The page keeps reading workouts.json for the training itself. This script
- * only adds what a static page can't do:
+ * It stores:
  *   - weight notes per day and person, in the "Notas" tab;
- *   - coach edits of a day, written into the month tab's cells and logged in
- *     the "Ediciones" tab so the page shows them before the next daily build.
+ *   - coach edits of a day, in the "Ediciones" tab. The page shows an edit
+ *     on top of the sheet's content while that day is still as it was when
+ *     the edit was made ("Base"); once the coach changes the day in his
+ *     sheet, his version wins again.
  *
  * GET  ?action=data                        -> {notes: [...], edits: [...]}
  * POST {action:"checkPin", pin}             -> {ok}
- * POST {action:"note", tab, week, day, person, text, pin?}
- * POST {action:"editDay", pin, tab, week, day, estructura, fuerza, wod}
+ * POST {action:"note", tab, week, day, person, text}
+ * POST {action:"editDay", pin, tab, week, day, estructura, fuerza, wod, base}
  * POST bodies are sent as text/plain so the browser skips the CORS preflight.
  */
 
 var NOTES_TAB = 'Notas';
 var EDITS_TAB = 'Ediciones';
 var NOTES_HEADER = ['Mes', 'Semana', 'Dia', 'Persona', 'Nota', 'Actualizado'];
-var EDITS_HEADER = ['Mes', 'Semana', 'Dia', 'Estructura', 'Fuerza', 'WOD', 'Actualizado'];
+var EDITS_HEADER = ['Mes', 'Semana', 'Dia', 'Estructura', 'Fuerza', 'WOD', 'Base', 'Actualizado'];
 var PEOPLE = ['Ale', 'Fabita'];
 var MAX_TEXT = 2000;
-var SEMANA_LABEL = /^semana\s*\d+.*$/i;
 
 function doGet(e) {
   return handle_(function () {
@@ -66,11 +69,11 @@ function isCoach_(pin) {
 
 // ---- notes -----------------------------------------------------------------
 
+/** One row per (month, week, day, person); an empty text deletes the row. */
 function saveNote_(req) {
   if (PEOPLE.indexOf(req.person) < 0) throw new Error('unknown person ' + req.person);
-  var text = String(req.text || '').trim().slice(0, MAX_TEXT);
   var key = weekKey_(req);
-  findWeek_(key.tab, key.week); // rejects notes for weeks that don't exist
+  var text = String(req.text || '').trim().slice(0, MAX_TEXT);
 
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
@@ -86,11 +89,13 @@ function saveNote_(req) {
       }
     }
     var now = new Date().toISOString();
-    var values = [[key.tab, key.week, key.day, req.person, asText_(text), now]];
-    if (row > 0) {
-      sheet.getRange(row, 1, 1, values[0].length).setValues(values);
-    } else if (text) {
-      sheet.appendRow(values[0]);
+    var values = [key.tab, key.week, key.day, req.person, asText_(text), now];
+    if (!text) {
+      if (row > 0) sheet.deleteRow(row);
+    } else if (row > 0) {
+      sheet.getRange(row, 1, 1, values.length).setValues([values]);
+    } else {
+      sheet.appendRow(values);
     }
     return { ok: true, updated: now };
   } finally {
@@ -110,32 +115,20 @@ function readNotes_() {
 
 // ---- coach edits -----------------------------------------------------------
 
+/** Appends the edit; the coach's training sheet is not touched. */
 function editDay_(req) {
   if (!isCoach_(req.pin)) throw new Error('PIN incorrecto');
   var key = weekKey_(req);
-  var parts = {
-    estructura: lines_(req.estructura),
-    fuerza: lines_(req.fuerza),
-    wod: lines_(req.wod),
-  };
-  var content = parts.estructura
-      .concat(parts.fuerza.length ? ['Fuerza'].concat(parts.fuerza) : [])
-      .concat(parts.wod.length ? ['WOD'].concat(parts.wod) : []);
-
+  var now = new Date().toISOString();
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
-    var w = findWeek_(key.tab, key.week);
-    if (key.day > w.days) throw new Error('la semana no tiene Dia ' + key.day);
-    var sheet = SpreadsheetApp.getActive().getSheetByName(key.tab);
-    writeDay_(sheet, w, key.day, content);
-
-    var now = new Date().toISOString();
     tab_(EDITS_TAB, EDITS_HEADER).appendRow([
       key.tab, key.week, key.day,
-      asText_(parts.estructura.join('\n')),
-      asText_(parts.fuerza.join('\n')),
-      asText_(parts.wod.join('\n')),
+      asText_(lines_(req.estructura).join('\n')),
+      asText_(lines_(req.fuerza).join('\n')),
+      asText_(lines_(req.wod).join('\n')),
+      asText_(String(req.base || '').slice(0, MAX_TEXT * 3)),
       now,
     ]);
     return { ok: true, updated: now };
@@ -144,97 +137,27 @@ function editDay_(req) {
   }
 }
 
-/**
- * Rewrites one day of a week. Everything goes into the day's main column
- * (the WOD column is cleared) since the page always showed both columns
- * joined anyway. Rows are inserted when the new text is longer than the
- * week's block; the extra cells stay empty for the other days.
- * "Fuerza" and "WOD" marker lines make sheet_to_json.py split it the same way.
- */
-function writeDay_(sheet, w, day, content) {
-  var col = (day - 1) * 2 + 1; // 1-based main column
-  var available = w.end - w.start;
-  if (content.length > available) {
-    var missing = content.length - available;
-    if (w.end <= sheet.getMaxRows()) {
-      sheet.insertRowsBefore(w.end, missing);
-    } else {
-      sheet.insertRowsAfter(sheet.getMaxRows(), missing);
-    }
-    available = content.length;
-  }
-  var values = [];
-  for (var i = 0; i < available; i++) {
-    values.push([asText_(content[i] || ''), '']);
-  }
-  if (available > 0) sheet.getRange(w.start, col, available, 2).setValues(values);
-}
-
 function readEdits_() {
   var sheet = SpreadsheetApp.getActive().getSheetByName(EDITS_TAB);
   if (!sheet) return [];
-  // Later rows win, so the page can simply keep the last one per day.
+  // Oldest first, so the page can simply keep the last one per day.
   return sheet.getDataRange().getDisplayValues().slice(1)
       .filter(function (r) { return r[0]; })
       .map(function (r) {
         return { tab: r[0], week: r[1], day: Number(r[2]),
-                 estructura: r[3], fuerza: r[4], wod: r[5], updated: r[6] };
+                 estructura: r[3], fuerza: r[4], wod: r[5], base: r[6], updated: r[7] };
       });
-}
-
-// ---- sheet layout (mirrors parse_weeks in tools/sheet_to_json.py) ------------
-
-/**
- * Finds a week inside a month tab by its label ("Semana 3 - DESCARGA", or
- * "Semana N" when the coach didn't write a label). Returns 1-based rows:
- * start = first row after "Dia 1", end = first row of the next week's
- * header (its "Semana" label or "Dia 1"), or one past the last data row.
- */
-function findWeek_(tabName, label) {
-  var sheet = SpreadsheetApp.getActive().getSheetByName(tabName);
-  if (!sheet) throw new Error('no existe la pestaña ' + tabName);
-  var rows = sheet.getRange(1, 1, Math.max(sheet.getLastRow(), 1), 8).getDisplayValues();
-  var weeks = locateWeeks_(rows);
-  for (var i = 0; i < weeks.length; i++) {
-    if (weeks[i].label === label) return weeks[i];
-  }
-  throw new Error('no existe ' + label + ' en ' + tabName);
-}
-
-function locateWeeks_(rows) {
-  var weeks = [];
-  var pending = null;
-  var pendingRow = -1;
-  var n = 0;
-  for (var i = 0; i < rows.length; i++) {
-    var a = String(rows[i][0] || '').trim();
-    if (SEMANA_LABEL.test(a)) {
-      pending = a;
-      pendingRow = i;
-      continue;
-    }
-    if (a.toLowerCase() === 'dia 1') {
-      var headerRow = pending ? pendingRow : i;
-      if (weeks.length) weeks[weeks.length - 1].end = headerRow + 1;
-      n++;
-      var days = rows[i].filter(function (c) {
-        return String(c).trim().toLowerCase().indexOf('dia ') === 0;
-      }).length || 3;
-      weeks.push({ label: pending || 'Semana ' + n, start: i + 2, end: rows.length + 1, days: days });
-      pending = null;
-    }
-  }
-  // A trailing "Semana N" label with no "Dia 1" yet belongs to no week.
-  if (weeks.length && pending) weeks[weeks.length - 1].end = Math.min(weeks[weeks.length - 1].end, pendingRow + 1);
-  return weeks;
 }
 
 // ---- helpers -----------------------------------------------------------------
 
 function weekKey_(req) {
+  var tab = String(req.tab || '').trim();
+  var week = String(req.week || '').trim();
   var day = Number(req.day);
-  if (!req.tab || !req.week || !(day >= 1)) throw new Error('faltan tab/week/day');
-  return { tab: String(req.tab), week: String(req.week), day: day };
+  if (!tab || !week || tab.length > 100 || week.length > 100) throw new Error('faltan tab/week');
+  if (!(day >= 1 && day <= 7 && day === Math.floor(day))) throw new Error('dia invalido');
+  return { tab: tab, week: week, day: day };
 }
 
 function lines_(text) {
@@ -258,5 +181,3 @@ function tab_(name, header) {
   }
   return sheet;
 }
-
-if (typeof module !== 'undefined') module.exports = { locateWeeks_: locateWeeks_, writeDay_: writeDay_, lines_: lines_ };

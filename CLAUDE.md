@@ -5,8 +5,9 @@
 A single-screen web app that shows my current training week from my coach's
 Google Sheet. Live at `https://ajenux.github.io/crossfit-app`. No login, no
 server of our own, no paid hosting. The only write path is one Google Apps
-Script bound to the sheet (weight notes, coach edits). That is the whole
-goal — do not expand it.
+Script bound to our own spreadsheet "Mi semana — datos" (weight notes, coach
+edits). **Never write to the coach's sheet** — it is read-only for us. That
+is the whole goal — do not expand it.
 
 Read `README.md` first; it describes exactly what is deployed and how.
 
@@ -14,7 +15,7 @@ Read `README.md` first; it describes exactly what is deployed and how.
 
 - `tools/sheet_to_json.py` — reads the sheet, writes `workouts.json`
 - `mobile/lib/main.dart` + `mobile/lib/week/week_app.dart` — the viewer
-- `apps_script/Code.gs` — notes + coach edits, installed in the sheet
+- `apps_script/Code.gs` — notes + coach edits, installed in "Mi semana — datos"
 - `.github/workflows/deploy-web.yml` — builds and deploys to GitHub Pages
   (push to `master`, daily cron 05:00 UTC, or manual)
 

@@ -7,8 +7,12 @@ Google Sheet, so Ale and Fabita don't have to open the sheet itself.
 
 No login, no server of our own, no paid hosting. The whole thing is a static
 page on GitHub Pages plus a scheduled GitHub Action, and one Google Apps
-Script bound to the sheet for the few things a static page can't do (weight
-notes and coach edits).
+Script for the few things a static page can't do (weight notes and coach
+edits).
+
+**The coach's sheet is never written to.** It is only read, by the daily
+build, with a read-only service account. Everything the page saves goes to
+a separate spreadsheet of ours, "Mi semana — datos".
 
 ## How it works
 
@@ -21,8 +25,8 @@ GitHub Action (push to master · daily 05:00 UTC · manual)
 
 Browser
    ├─ loads workouts.json and shows the current week
-   └─ apps_script/Code.gs (web app bound to the sheet, optional)
-        GET  notes + coach edits newer than workouts.json
+   └─ apps_script/Code.gs  web app bound to "Mi semana — datos" (optional)
+        GET  notes + coach edits
         POST a weight note, or a coach edit of a day
 ```
 
@@ -51,15 +55,20 @@ Browser
   line (the one matching the Pesos chip). The editor lists the day's
   exercises as ready-made rows, so only the value is typed: every Fuerza
   line, Estructura lines that ramp up ("subiendo", "heavy"), and one
-  `WOD · …` row for rounds/score. The coach's `(X/Y)` weights are stripped
-  from the names; "Otro ejercicio" adds a free row; empty rows aren't saved.
-  Stored in the sheet's `Notas` tab as plain text, one
-  `exercise: value` line each (e.g. `5x2 deadlift foco velocidad: 130`).
+  `WOD · …` row for rounds/score. Each row shows just the exercise's name
+  ("5x2 deadlift (125/95) foco velocidad" → "Deadlift"; see
+  `_exerciseName`, whose rules were checked against every Fuerza line in the
+  sheet). "Otro ejercicio" adds a free row; empty rows aren't saved.
+  Stored in the datos `Notas` tab as plain text, one `exercise: value` line
+  each (e.g. `Deadlift: 130`).
 - **Entrenador**: third option in "¿Quién eres?" (or "Soy el entrenador"),
   asks for a PIN. The coach can edit any day (Estructura / Fuerza / WOD) and
-  both people's notes. Edits are written into the month tab's cells and
-  logged in the `Ediciones` tab; the page shows them immediately, before
-  the next daily build. The PIN is remembered in that browser.
+  both people's notes. An edit is saved in the datos `Ediciones` tab together
+  with the day as it was (`Base`), and the page shows it on top of the
+  sheet on every device. **His own sheet does not change.** If he later
+  changes that day in his sheet, the day no longer matches the edit's base
+  and his sheet's version is shown again, so an old edit never hides a newer
+  change. The PIN is remembered in that browser.
 
 Notes and coach edits only appear when the page was built with an Apps
 Script URL (see below); without it the page behaves as a plain viewer.
@@ -73,12 +82,14 @@ rules.
 
 ## Notes and coach edits (Apps Script)
 
-`apps_script/Code.gs` runs as a Google Apps Script web app bound to the
-sheet. It must be installed by an account with **edit** access to the sheet
-(the service account stays read-only).
+`apps_script/Code.gs` runs as a Google Apps Script web app bound to our own
+spreadsheet ["Mi semana — datos"](https://docs.google.com/spreadsheets/d/16tadRfWZ1V1MMW9OBFo-ydMz-IP2BXivwr16hYsJuGo/edit)
+(owned by ajenux@gmail.com). It is marked `@OnlyCurrentDoc`, so Google only
+lets it open that spreadsheet — it can't reach the coach's sheet even by
+mistake.
 
-1. Open the sheet → Extensions → Apps Script. Replace `Code.gs` with
-   `apps_script/Code.gs` from this repo and save.
+1. Open "Mi semana — datos" → Extensions → Apps Script. Replace `Code.gs`
+   with `apps_script/Code.gs` from this repo and save.
 2. Project Settings → Script properties → add `COACH_PIN` = the coach's PIN.
 3. Deploy → New deployment → type **Web app**, Execute as **Me**, Who has
    access **Anyone**. Authorize, and copy the web app URL (`.../exec`).
@@ -93,11 +104,7 @@ version, so the URL stays the same.
 
 What to know:
 - The script creates the `Notas` and `Ediciones` tabs on first use.
-  `sheet_to_json.py` ignores them (not month names).
-- A coach edit rewrites that day in the month tab: everything goes into the
-  day's first column (its second column is cleared), with `Fuerza` and `WOD`
-  lines as section markers, and rows are inserted if the new text is
-  longer. Other days and weeks are not touched.
+- Emptying a note deletes its row; edits are only appended (history).
 - Notes need no PIN: anyone with the link can write them. Day edits need
   the PIN.
 
@@ -107,7 +114,7 @@ What to know:
 |---|---|
 | `tools/sheet_to_json.py` | Sheet → `workouts.json` (Python, Google Sheets API v4) |
 | `mobile/lib/main.dart`, `mobile/lib/week/` | The viewer (Flutter web) |
-| `apps_script/Code.gs` | Notes + coach edits (Google Apps Script, bound to the sheet) |
+| `apps_script/Code.gs` | Notes + coach edits (Google Apps Script, bound to "Mi semana — datos") |
 | `.github/workflows/deploy-web.yml` | Build + deploy to GitHub Pages |
 
 ## Setup

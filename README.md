@@ -47,9 +47,14 @@ Browser
 - A checkbox per day to mark it done. Also stored in the browser only.
 - Always fetches fresh data (cache-busting query, no service worker).
 - **Pesos logrados** under each day: Ale and Fabita each note what they
-  reached ("high hang snatch hasta 45"). Everyone sees both notes on any
-  device; you can edit your own line (the one matching the Pesos chip).
-  Stored in the sheet's `Notas` tab.
+  reached. Everyone sees both notes on any device; you can edit your own
+  line (the one matching the Pesos chip). The editor lists the day's
+  exercises as ready-made rows, so only the value is typed: every Fuerza
+  line, Estructura lines that ramp up ("subiendo", "heavy"), and one
+  `WOD · …` row for rounds/score. The coach's `(X/Y)` weights are stripped
+  from the names; "Otro ejercicio" adds a free row; empty rows aren't saved.
+  Stored in the sheet's `Notas` tab as plain text, one
+  `exercise: value` line each (e.g. `5x2 deadlift foco velocidad: 130`).
 - **Entrenador**: third option in "¿Quién eres?" (or "Soy el entrenador"),
   asks for a PIN. The coach can edit any day (Estructura / Fuerza / WOD) and
   both people's notes. Edits are written into the month tab's cells and

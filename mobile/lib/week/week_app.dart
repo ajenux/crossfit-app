@@ -163,6 +163,7 @@ class _WeekScreenState extends State<WeekScreen> {
   // "tab|week|day" -> person -> note text, from the sheet's "Notas" tab.
   Map<String, Map<String, String>> _notes = {};
   String? _apiError;
+  bool _remoteLoading = false;
 
   bool get _isCoach => _coachPin != null;
 
@@ -209,14 +210,15 @@ class _WeekScreenState extends State<WeekScreen> {
         }
       }
       final generatedAt = data['generatedAt'] as String?;
-      final notes = await _loadRemote(weeks, generatedAt);
       setState(() {
         _weeks = weeks;
-        _notes = notes;
         _index = weeks.isEmpty ? 0 : _currentWeekIndex(weeks);
         _generatedAt = generatedAt;
         _loading = false;
       });
+      // Not awaited: the Apps Script takes seconds to answer, so the week
+      // shows first and notes/edits fill in when they arrive.
+      _loadRemote(weeks, generatedAt);
       if (firstVisit && mounted) _askWhoIsThis();
     } catch (e) {
       setState(() {
@@ -232,10 +234,12 @@ class _WeekScreenState extends State<WeekScreen> {
   /// workouts.json replace that day's content, so they show up right away
   /// instead of after the next daily build. A failure here never blocks the
   /// training itself: the error is shown and the JSON content is kept.
-  Future<Map<String, Map<String, String>>> _loadRemote(
-      List<_Week> weeks, String? generatedAt) async {
-    _apiError = null;
-    if (_apiUrl.isEmpty) return {};
+  Future<void> _loadRemote(List<_Week> weeks, String? generatedAt) async {
+    if (_apiUrl.isEmpty) return;
+    setState(() {
+      _apiError = null;
+      _remoteLoading = true;
+    });
     try {
       final data = await _Api.get();
       final notes = <String, Map<String, String>>{};
@@ -256,10 +260,17 @@ class _WeekScreenState extends State<WeekScreen> {
         day?.content = _joinSections(
             e['estructura'] as String, e['fuerza'] as String, e['wod'] as String);
       }
-      return notes;
+      if (!mounted) return;
+      setState(() {
+        _notes = notes;
+        _remoteLoading = false;
+      });
     } catch (e) {
-      _apiError = 'No se pudieron cargar las notas: $e';
-      return _notes;
+      if (!mounted) return;
+      setState(() {
+        _apiError = 'No se pudieron cargar las notas: $e';
+        _remoteLoading = false;
+      });
     }
   }
 
@@ -321,12 +332,19 @@ class _WeekScreenState extends State<WeekScreen> {
   /// Posts to the Apps Script and applies [onOk] only once the sheet accepted it.
   Future<void> _send(Map<String, dynamic> body, {required VoidCallback onOk}) async {
     final messenger = ScaffoldMessenger.of(context);
+    // The Apps Script often takes several seconds; say so right away.
+    messenger.showSnackBar(const SnackBar(
+        content: Text('Guardando…'), duration: Duration(seconds: 30)));
     try {
       await _Api.post(body);
       setState(onOk);
-      messenger.showSnackBar(const SnackBar(content: Text('Guardado')));
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Guardado')));
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('No se guardó: $e')));
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text('No se guardó: $e')));
     }
   }
 
@@ -534,6 +552,12 @@ class _WeekScreenState extends State<WeekScreen> {
                         icon: const Icon(Icons.lock_outline, size: 18),
                         label: const Text('Soy el entrenador'),
                       ),
+              ),
+            if (_remoteLoading)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text('Cargando notas…',
+                    style: TextStyle(color: scheme.outline)),
               ),
             if (_apiError != null)
               Padding(

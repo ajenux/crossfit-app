@@ -1,4 +1,8 @@
 /**
+ * @OnlyCurrentDoc Limits the OAuth scope to this spreadsheet only.
+ */
+
+/**
  * Write-back for the week viewer, bound to the coach's training sheet.
  *
  * Install: in the sheet, Extensions > Apps Script, paste this file, set the

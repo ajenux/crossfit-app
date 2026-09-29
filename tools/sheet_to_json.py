@@ -102,6 +102,7 @@ def add_section_markers(raw):
         return raw
     out = ["[WARMUP]"]
     fuerza = wod = False
+    fuerza_lines = 0
     for line in raw.split("\n"):
         t = line.strip()
         low = t.lower()
@@ -109,9 +110,13 @@ def add_section_markers(raw):
             fuerza = True
             out.append("[FUERZA]")
             continue
-        if not wod and WOD_HEADER.match(low):
+        # The first line under "Fuerza" always belongs to it, even when it is
+        # an EMOM (e.g. "emom x12 1 power clean"); only later lines can open the WOD.
+        if not wod and WOD_HEADER.match(low) and not (fuerza and fuerza_lines == 0):
             wod = True
             out.append("[WOD]")
+        elif fuerza and not wod:
+            fuerza_lines += 1
         out.append(t)
     return "\n".join(out).strip()
 

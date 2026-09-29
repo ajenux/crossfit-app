@@ -93,6 +93,28 @@ List<(String, List<String>)> _splitSections(String content) {
   return blocks;
 }
 
+/// The exercises offered as ready-made rows in the notes editor: every
+/// Fuerza line, Estructura lines that ramp up ("subiendo", "heavy"), and one
+/// row for the WOD score. The coach's "(X/Y)" weights are dropped so the
+/// names stay short.
+List<String> _noteExercises(String content) {
+  final pair = RegExp(r'\s*\([\d,\.]+/[\d,\.]+\)');
+  final rampUp = RegExp(r'subiendo|heavy|pesad', caseSensitive: false);
+  final rxc = RegExp(r'^\d+\s*RxC$', caseSensitive: false);
+  String clean(String l) => l.replaceAll(pair, '').replaceAll(RegExp(r'\s+'), ' ').trim();
+  final out = <String>[];
+  for (final (marker, lines) in _splitSections(content)) {
+    if (marker == '[WARMUP]') {
+      out.addAll(lines.where((l) => rampUp.hasMatch(l) && !rxc.hasMatch(l)).map(clean));
+    } else if (marker == '[FUERZA]') {
+      out.addAll(lines.map(clean));
+    } else if (marker == '[WOD]' && lines.isNotEmpty) {
+      out.add('WOD · ${clean(lines.first)}');
+    }
+  }
+  return out.toSet().toList();
+}
+
 /// Inverse of [_splitSections] for the three editable parts of a day.
 String _joinSections(String estructura, String fuerza, String wod) {
   final out = <String>[];
@@ -279,10 +301,13 @@ class _WeekScreenState extends State<WeekScreen> {
 
   Future<void> _editNote(_Week w, _Day d, String person) async {
     final k = _noteKey(w.title, w.label, d.number);
-    final text = await _textDialog(
-      title: 'Pesos de $person · Día ${d.number}',
-      initial: _notes[k]?[person] ?? '',
-      hint: 'Ej: high hang snatch hasta 45 kg',
+    final text = await showDialog<String>(
+      context: context,
+      builder: (ctx) => _NoteDialog(
+        title: 'Pesos de $person · Día ${d.number}',
+        exercises: _noteExercises(d.content),
+        initial: _notes[k]?[person] ?? '',
+      ),
     );
     if (text == null) return;
     await _send({
@@ -777,6 +802,140 @@ extension on _DayCard {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// Notes editor: one row per exercise of the day, already named, so only the
+/// weight (or rounds, for the WOD) has to be typed. Saved as plain text, one
+/// "exercise: value" line each, which is what the "Notas" tab stores; rows
+/// left empty are dropped. Lines of an existing note that don't match an
+/// exercise (older free-text notes, "Otro" rows) come back as editable rows.
+class _NoteDialog extends StatefulWidget {
+  final String title;
+  final List<String> exercises;
+  final String initial;
+  const _NoteDialog({required this.title, required this.exercises, required this.initial});
+
+  @override
+  State<_NoteDialog> createState() => _NoteDialogState();
+}
+
+class _NoteRow {
+  final String? fixedName; // null = "Otro": the name is typed
+  final TextEditingController name;
+  final TextEditingController value;
+  _NoteRow(this.fixedName, {String name = '', String value = ''})
+      : name = TextEditingController(text: name),
+        value = TextEditingController(text: value);
+
+  String get label => fixedName ?? name.text.trim();
+}
+
+class _NoteDialogState extends State<_NoteDialog> {
+  final _rows = <_NoteRow>[];
+
+  @override
+  void initState() {
+    super.initState();
+    final saved = <String, String>{};
+    final extra = <_NoteRow>[];
+    for (final line in widget.initial.split('\n')) {
+      final t = line.trim();
+      if (t.isEmpty) continue;
+      // Split on the last ": " since names can hold one (E30"x12: 10 du).
+      final i = t.lastIndexOf(': ');
+      final (name, value) = i < 0 ? (t, '') : (t.substring(0, i), t.substring(i + 2));
+      if (widget.exercises.contains(name)) {
+        saved[name] = value;
+      } else {
+        extra.add(_NoteRow(null, name: name, value: value));
+      }
+    }
+    for (final e in widget.exercises) {
+      _rows.add(_NoteRow(e, value: saved[e] ?? ''));
+    }
+    _rows.addAll(extra);
+    if (_rows.isEmpty) _rows.add(_NoteRow(null));
+  }
+
+  @override
+  void dispose() {
+    for (final r in _rows) {
+      r.name.dispose();
+      r.value.dispose();
+    }
+    super.dispose();
+  }
+
+  String _result() => [
+        for (final r in _rows)
+          if (r.label.isNotEmpty && r.value.text.trim().isNotEmpty)
+            '${r.label}: ${r.value.text.trim()}'
+          else if (r.fixedName == null && r.label.isNotEmpty)
+            r.label, // a typed note without a value is kept as is
+      ].join('\n');
+
+  Widget _row(_NoteRow r) {
+    final isWod = r.fixedName?.startsWith('WOD') ?? false;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: r.fixedName != null
+                ? Text(r.fixedName!, style: const TextStyle(height: 1.3))
+                : TextField(
+                    controller: r.name,
+                    decoration: const InputDecoration(
+                        isDense: true, hintText: 'Ejercicio'),
+                  ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 140,
+            child: TextField(
+              controller: r.value,
+              decoration: InputDecoration(
+                isDense: true,
+                border: const OutlineInputBorder(),
+                hintText: isWod ? 'vueltas' : 'kg',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: SizedBox(
+        width: 480,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final r in _rows) _row(r),
+              TextButton.icon(
+                onPressed: () => setState(() => _rows.add(_NoteRow(null))),
+                icon: const Icon(Icons.add),
+                label: const Text('Otro ejercicio'),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _result()),
+          child: const Text('Guardar'),
+        ),
+      ],
     );
   }
 }

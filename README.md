@@ -5,8 +5,10 @@ Google Sheet, so Ale and Fabita don't have to open the sheet itself.
 
 **Live:** https://ajenux.github.io/crossfit-app
 
-No login, no backend, no paid hosting. The whole thing is a static page on
-GitHub Pages plus a scheduled GitHub Action.
+No login, no server of our own, no paid hosting. The whole thing is a static
+page on GitHub Pages plus a scheduled GitHub Action, and one Google Apps
+Script bound to the sheet for the few things a static page can't do (weight
+notes and coach edits).
 
 ## How it works
 
@@ -18,7 +20,10 @@ GitHub Action (push to master · daily 05:00 UTC · manual)
                               and publishes both to GitHub Pages
 
 Browser
-   └─ loads workouts.json and shows the current week
+   ├─ loads workouts.json and shows the current week
+   └─ apps_script/Code.gs (web app bound to the sheet, optional)
+        GET  notes + coach edits newer than workouts.json
+        POST a weight note, or a coach edit of a day
 ```
 
 ### What the page does
@@ -41,6 +46,18 @@ Browser
   **Ambos** shows the pair as written. Changing it updates the saved choice.
 - A checkbox per day to mark it done. Also stored in the browser only.
 - Always fetches fresh data (cache-busting query, no service worker).
+- **Pesos logrados** under each day: Ale and Fabita each note what they
+  reached ("high hang snatch hasta 45"). Everyone sees both notes on any
+  device; you can edit your own line (the one matching the Pesos chip).
+  Stored in the sheet's `Notas` tab.
+- **Entrenador**: third option in "¿Quién eres?" (or "Soy el entrenador"),
+  asks for a PIN. The coach can edit any day (Estructura / Fuerza / WOD) and
+  both people's notes. Edits are written into the month tab's cells and
+  logged in the `Ediciones` tab; the page shows them immediately, before
+  the next daily build. The PIN is remembered in that browser.
+
+Notes and coach edits only appear when the page was built with an Apps
+Script URL (see below); without it the page behaves as a plain viewer.
 
 ### Sheet format expected
 
@@ -49,17 +66,49 @@ One tab per month. Inside a tab, a week starts at a row whose column A is
 columns (main block + WOD block). See `tools/sheet_to_json.py` for the exact
 rules.
 
+## Notes and coach edits (Apps Script)
+
+`apps_script/Code.gs` runs as a Google Apps Script web app bound to the
+sheet. It must be installed by an account with **edit** access to the sheet
+(the service account stays read-only).
+
+1. Open the sheet → Extensions → Apps Script. Replace `Code.gs` with
+   `apps_script/Code.gs` from this repo and save.
+2. Project Settings → Script properties → add `COACH_PIN` = the coach's PIN.
+3. Deploy → New deployment → type **Web app**, Execute as **Me**, Who has
+   access **Anyone**. Authorize, and copy the web app URL (`.../exec`).
+4. Tell the build about it and redeploy:
+   ```
+   gh variable set APPS_SCRIPT_URL --body "https://script.google.com/macros/s/.../exec"
+   gh workflow run deploy-web.yml --ref master
+   ```
+
+After changing `Code.gs`, use Deploy → Manage deployments → edit → New
+version, so the URL stays the same.
+
+What to know:
+- The script creates the `Notas` and `Ediciones` tabs on first use.
+  `sheet_to_json.py` ignores them (not month names).
+- A coach edit rewrites that day in the month tab: everything goes into the
+  day's first column (its second column is cleared), with `Fuerza` and `WOD`
+  lines as section markers, and rows are inserted if the new text is
+  longer. Other days and weeks are not touched.
+- Notes need no PIN: anyone with the link can write them. Day edits need
+  the PIN.
+
 ## Repository layout
 
 | Path | What |
 |---|---|
 | `tools/sheet_to_json.py` | Sheet → `workouts.json` (Python, Google Sheets API v4) |
 | `mobile/lib/main.dart`, `mobile/lib/week/` | The viewer (Flutter web) |
+| `apps_script/Code.gs` | Notes + coach edits (Google Apps Script, bound to the sheet) |
 | `.github/workflows/deploy-web.yml` | Build + deploy to GitHub Pages |
 
 ## Setup
 
-Only one secret is needed in the GitHub repo:
+One secret is needed in the GitHub repo (plus the optional `APPS_SCRIPT_URL`
+variable described above):
 
 ```
 gh secret set GOOGLE_CREDENTIALS_JSON < .google-credentials.json
@@ -79,6 +128,8 @@ python3 -m venv .venv && .venv/bin/pip install google-auth requests
 # 2. Build the viewer and serve it
 cd mobile
 flutter build web --release --pwa-strategy=none --base-href=/
+# add --dart-define=APPS_SCRIPT_URL=https://script.google.com/macros/s/.../exec
+# to enable notes and coach edits
 cp ../workouts.json build/web/
 python3 -m http.server 8765 --directory build/web
 # open http://localhost:8765

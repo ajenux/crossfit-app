@@ -110,6 +110,11 @@ def add_section_markers(raw):
             fuerza = True
             out.append("[FUERZA]")
             continue
+        # An explicit "WOD" line (written by coach edits from the page).
+        if not wod and low == "wod":
+            wod = True
+            out.append("[WOD]")
+            continue
         # The first line under "Fuerza" always belongs to it, even when it is
         # an EMOM (e.g. "emom x12 1 power clean"); only later lines can open the WOD.
         if not wod and WOD_HEADER.match(low) and not (fuerza and fuerza_lines == 0):

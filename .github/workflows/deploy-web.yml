@@ -52,13 +52,18 @@ jobs:
         working-directory: mobile
         run: flutter pub get
 
+      # APPS_SCRIPT_URL is the web app URL of apps_script/Code.gs (repo
+      # variable). When unset, notes and coach edits are hidden.
       - name: Build Flutter Web
         working-directory: mobile
+        env:
+          APPS_SCRIPT_URL: ${{ vars.APPS_SCRIPT_URL }}
         run: |
           flutter build web --release \
             -t lib/main.dart \
             --pwa-strategy=none \
-            --base-href=/crossfit-app/
+            --base-href=/crossfit-app/ \
+            --dart-define=APPS_SCRIPT_URL="$APPS_SCRIPT_URL"
           cp ../workouts.json build/web/workouts.json
 
       - name: Upload Pages artifact

@@ -90,6 +90,11 @@ mistake.
 
 1. Open "Mi semana — datos" → Extensions → Apps Script. Replace `Code.gs`
    with `apps_script/Code.gs` from this repo and save.
+   **Start from "Mi semana — datos", never from the coach's sheet**: the
+   Apps Script editor looks identical either way, but a project opened from
+   the coach's sheet would write into it. Check the project name in the
+   editor ("Mi semana — datos (script)") before deploying, and after
+   deploying check that a test note lands in "Mi semana — datos".
 2. Project Settings → Script properties → add `COACH_PIN` = the coach's PIN.
 3. Deploy → New deployment → type **Web app**, Execute as **Me**, Who has
    access **Anyone**. Authorize, and copy the web app URL (`.../exec`).

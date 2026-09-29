@@ -4,7 +4,7 @@ Private end-to-end check for [crossfit-app](https://github.com/ajenux/crossfit-a
 
 `app.spec.mjs` (Playwright, uses the Chrome installed on the machine)
 checks everything crossfit-app promises against the real thing — the published page, its
-`workouts.json`, the Apps Script and the sheet:
+`workouts.json`, the Apps Script and the coach's sheet:
 
 - `workouts.json` is fresh (< 26 h), well formed, has no empty Fuerza
   block, and matches what the parser reads from the sheet right now (day
@@ -12,17 +12,18 @@ checks everything crossfit-app promises against the real thing — the published
 - first-visit prompt, opening on today's week with its dates, ◀ ▶, every
   day of this week rendered as in the sheet for Ale / Fabita / Ambos,
   weight chips, "done" checkbox persistence;
-- the Apps Script rejects bad input (wrong PIN, unknown week/person);
-- notes: Ale and Fabita on separate "devices", ready-made exercise rows,
-  who may edit what, the text stored in `Notas`, deleting a note;
-- coach: wrong PIN refused, PIN accepted, a day edited from the page lands
-  in the sheet cells (rows inserted, the rest of the week and the next week
-  untouched), reads back identically through `sheet_to_json.py`, is logged
-  in `Ediciones` and shows on another device before any rebuild.
+- the Apps Script rejects bad input (wrong PIN, bad day, unknown person);
+- notes: Ale and Fabita on separate "devices", exercise rows reduced to
+  their names, who may edit what, stored in the datos `Notas` tab, deleting a
+  note;
+- coach: wrong PIN refused, PIN accepted, a day edited from the page is
+  logged in `Ediciones` with its base, shows on another device, and gives way
+  to the sheet's version once that day changes there;
+- **the coach's sheet did not change by a single cell** during the run.
 
-It writes only to a sandbox tab **`E2E`** in the sheet (the page never shows
-it on its own; the test injects it into `workouts.json`), and resets it at
-the end. Month tabs are only read.
+Writes go only to "Mi semana — datos", under a made-up `E2E` month that the
+page never shows on its own (the test injects it into `workouts.json`).
+The coach's sheet is only read.
 
 ## Setup on a new machine
 
@@ -48,24 +49,6 @@ cp .env.example .env   # then set COACH_PIN with an editor
 Needs Google Chrome installed (Playwright drives it; no browser download).
 If the app checkout is elsewhere, set `APP_DIR`.
 
-One-time, in the sheet: a tab named `E2E` with this pasted at `A1`
-(tab-separated; once per sheet, not per machine):
-
-```
-Semana 1
-Dia 1		Dia 2
-4 RxC		3 RxC
-base estructura		otro dia estructura
-Fuerza		Fuerza
-5x3 back squat (100/70)		5x1 push press (60/40)
-amrap 10		emom 10
-10 burpees		5 pullups
-Semana 2
-Dia 1
-2 RxC
-semana dos no tocar
-```
-
 ## Run
 
 ```bash
@@ -75,6 +58,3 @@ npx playwright test -g "viewer"                       # just one group
 ```
 
 Without `COACH_PIN` the notes/coach part is skipped.
-
-Without `COACH_PIN` the notes/coach part is skipped. Each coach edit that is
-longer than the block inserts rows in the `E2E` tab; they stay empty.

@@ -1,9 +1,11 @@
 // End-to-end check of everything the week viewer promises, against the real
-// thing: the published page, its workouts.json, the Apps Script and the sheet.
+// thing: the published page, its workouts.json, the Apps Script and the
+// coach's training sheet.
 //
-// Writes only to the sheet's "E2E" tab (a sandbox week the page never shows
-// on its own) and to that tab's rows in "Notas"/"Ediciones". Month tabs are
-// only read. See README.md for the one-time setup.
+// The coach's sheet is only read, and the last test checks it didn't change
+// by a single cell. Writes go through the Apps Script to our own "Mi semana —
+// datos" spreadsheet, under a made-up "E2E" month that the page never shows
+// on its own (the test injects it into workouts.json). See README.md.
 import { test, expect } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -14,7 +16,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const APP_DIR = path.resolve(process.env.APP_DIR || path.join(HERE, '..', 'crossfit-app'));
 const PYTHON = process.env.PYTHON || path.join(APP_DIR, '.venv', 'bin', 'python');
 const API = process.env.APPS_SCRIPT_URL ||
-  'https://script.google.com/macros/s/AKfycbxpoPbMTXToj1dfSaOStwFZvC4dtqlT_S24Hv-O4DnJAQcLeY1C1I-dO8YSJ7SAfNWJxg/exec';
+  'https://script.google.com/macros/s/AKfycbxz5ULYQTK9IKqur30MJHN7utMZxUH7XLvp2Dw9hsFjBpgZny_S8-mJHj8fClIBdHCG0A/exec';
 const PIN = process.env.COACH_PIN || '';
 const E2E_TAB = 'E2E';
 const E2E_WEEK = 'Semana 1';
@@ -22,9 +24,10 @@ const RUN = Date.now().toString(36); // makes this run's writes recognisable
 
 // ---- helpers: sheet, script, expected rendering ------------------------------
 
-function sheet(...args) {
-  return JSON.parse(execFileSync(PYTHON, [path.join(HERE, 'sheet.py'), ...args],
-    { encoding: 'utf8', env: { ...process.env, APP_DIR } }));
+/** Every month tab of the coach's sheet, raw rows and parsed weeks (read-only). */
+function coachSheet() {
+  return JSON.parse(execFileSync(PYTHON, [path.join(HERE, 'sheet.py'), 'snapshot'],
+    { encoding: 'utf8', env: { ...process.env, APP_DIR }, maxBuffer: 64 << 20 }));
 }
 
 /** Calls the Apps Script; retries the odd Google error page it sometimes returns. */
@@ -104,7 +107,10 @@ function dateRange(startIso, endIso) {
 
 /** Flattens workouts.json the way the page does, oldest first. */
 function flatWeeks(json) {
-  return json.tabs.flatMap((t) => t.weeks.map((w) => ({ ...w, tab: t.name ?? t.title, title: t.title, month: t.month })));
+  return json.tabs.flatMap((t) => t.weeks.map((w) => ({
+    ...w, tab: t.name ?? t.title, title: t.title, month: t.month,
+    days: w.days.map((d) => ({ ...d, original: d.content })),
+  })));
 }
 
 /** Same rule as _currentWeekIndex: today's week, else last of this month, else newest. */
@@ -115,14 +121,16 @@ function currentWeek(weeks) {
   return weeks[i < 0 ? weeks.length - 1 : i];
 }
 
-/** Applies coach edits newer than the build, like the page does. */
-function withEdits(weeks, edits, generatedAt) {
-  const built = new Date(generatedAt);
+const normalized = (c) => c.split('\n').map((l) => l.trim()).filter(Boolean).join('\n');
+
+/** Applies coach edits whose base is still the day's content, like the page does. */
+function withEdits(weeks, edits) {
   for (const e of edits) {
-    if (!(new Date(e.updated) > built)) continue;
     const w = weeks.find((x) => x.title === e.tab && x.label === e.week);
     const d = w?.days.find((x) => x.day === e.day);
-    if (d) d.content = joinSections(e.estructura, e.fuerza, e.wod);
+    if (d && normalized(e.base ?? '') === normalized(d.original)) {
+      d.content = joinSections(e.estructura, e.fuerza, e.wod);
+    }
   }
   return weeks;
 }
@@ -134,7 +142,7 @@ const WHO = { Ambos: -1, Ale: 0, Fabita: 1 };
 /**
  * Opens the page in a fresh context (a separate "device"). `who` pre-selects
  * the profile as a returning visitor; omit it to get the first-visit prompt.
- * `inject` appends a week to workouts.json (used for the E2E sandbox tab).
+ * `inject` appends a tab to workouts.json (the made-up E2E month).
  */
 async function openApp(browser, { who, coachPin, inject } = {}) {
   const context = await browser.newContext();
@@ -142,8 +150,7 @@ async function openApp(browser, { who, coachPin, inject } = {}) {
     await context.route('**/workouts.json*', async (route) => {
       const res = await route.fetch();
       const json = await res.json();
-      json.tabs.push(inject.tab);
-      json.generatedAt = inject.generatedAt;
+      json.tabs.push(inject);
       await route.fulfill({ response: res, json });
     });
   }
@@ -181,17 +188,27 @@ async function notesLoaded(page) {
   await expect(page.getByText('Cargando notas…')).toHaveCount(0, { timeout: 60_000 });
 }
 
+/** A snackbar. Flutter also announces it in a live region; that copy is ignored. */
+const toast = (page, text) => page.locator('[id^=flt-semantic-node]').getByText(text, { exact: true });
+
 async function saved(page) {
-  await expect(page.getByText('Guardado', { exact: true })).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByText('Guardado', { exact: true })).toHaveCount(0, { timeout: 15_000 });
+  await expect(toast(page, 'Guardado')).toBeVisible({ timeout: 60_000 });
+  await expect(toast(page, 'Guardado')).toHaveCount(0, { timeout: 15_000 });
 }
 
-/** Replaces a Flutter text field's content by typing, like a person would. */
+/**
+ * Replaces a Flutter text field's content by typing, like a person would.
+ * Flutter needs a moment to attach its text input after the tap, or the
+ * first keystrokes are lost; the value is checked afterwards.
+ */
 async function typeInto(page, field, text) {
+  await expect(field).toBeVisible();
   await field.click();
+  await page.waitForTimeout(400);
   await page.keyboard.press('ControlOrMeta+a');
   await page.keyboard.press('Backspace');
-  if (text) await page.keyboard.type(text);
+  if (text) await page.keyboard.type(text, { delay: 20 });
+  await expect(field).toHaveValue(text);
 }
 
 // ---- the published data ------------------------------------------------------------
@@ -235,18 +252,7 @@ test.describe.serial('published data', () => {
     // Same parser as the deploy, run against the live sheet. Tabs and weeks
     // must match; day contents may lag until the next daily build, so a
     // difference there is reported rather than failed.
-    const fresh = JSON.parse(execFileSync(PYTHON, ['-c', `
-import json, sys; sys.path.insert(0, ${JSON.stringify(path.join(APP_DIR, 'tools'))})
-import sheet_to_json as s
-c = s.load_credentials(${JSON.stringify(path.join(APP_DIR, '.google-credentials.json'))})
-tabs = []
-for t in s.sheet_titles(c):
-    my = s.month_of_tab(t)
-    if my is None: continue
-    w = s.parse_weeks(s.sheet_rows(c, t))
-    if w: tabs.append({"title": t, "weeks": w})
-print(json.dumps(tabs, ensure_ascii=False))
-`], { encoding: 'utf8' }));
+    const fresh = coachSheet();
     const shape = (tabs) => tabs.map((t) => `${t.title}: ${t.weeks.map((w) => `${w.label}(${w.days.length})`).join(', ')}`);
     expect(shape(json.tabs)).toEqual(shape(fresh));
     const stale = [];
@@ -265,7 +271,7 @@ test.describe.serial('viewer', () => {
   test.beforeAll(async ({ request, baseURL }) => {
     json = await (await request.get(new URL(`workouts.json?t=${Date.now()}`, baseURL).href)).json();
     remote = await api();
-    weeks = withEdits(flatWeeks(json), remote.edits, json.generatedAt);
+    weeks = withEdits(flatWeeks(json), remote.edits);
     current = currentWeek(weeks);
   });
 
@@ -356,8 +362,10 @@ test.describe.serial('apps script', () => {
     expect(await api({ action: 'checkPin', pin: `wrong-${RUN}` })).toEqual({ ok: false });
     expect((await api({ action: 'editDay', pin: `wrong-${RUN}`, tab: 'Septi', week: 'Semana 1', day: 1, estructura: 'x' })).error)
       .toBe('PIN incorrecto');
-    expect((await api({ action: 'note', tab: 'Septi', week: 'Semana 99', day: 1, person: 'Ale', text: 'x' })).error)
-      .toMatch(/no existe Semana 99/);
+    expect((await api({ action: 'note', tab: 'Septi', week: 'Semana 1', day: 9, person: 'Ale', text: 'x' })).error)
+      .toMatch(/dia invalido/);
+    expect((await api({ action: 'note', tab: '', week: 'Semana 1', day: 1, person: 'Ale', text: 'x' })).error)
+      .toMatch(/faltan tab\/week/);
     expect((await api({ action: 'note', tab: 'Septi', week: 'Semana 1', day: 1, person: 'Nadie', text: 'x' })).error)
       .toMatch(/unknown person/);
     expect((await api({ action: 'nope' })).error).toMatch(/unknown action/);
@@ -365,49 +373,44 @@ test.describe.serial('apps script', () => {
   });
 });
 
-// ---- notes and coach edits, end to end, in the E2E sandbox tab -----------------------
+// ---- notes and coach edits, end to end, never touching the coach's sheet ---------
 
+// Unique per run: edits from earlier runs stay in "Ediciones" and, by design,
+// would still apply to an E2E day whose content matched their base.
 const BASE = {
-  estructura: '4 RxC\nbase estructura',
+  estructura: `4 RxC\nbase estructura ${RUN}`,
   fuerza: '5x3 back squat (100/70)',
   wod: 'amrap 10\n10 burpees',
 };
+const BASE_CONTENT = joinSections(BASE.estructura, BASE.fuerza, BASE.wod);
 
-test.describe.serial('notes and coach edits (E2E tab)', () => {
-  let inject;          // the sandbox week, as the page will receive it
-  let before;          // E2E tab rows before this run's edits
-  const T0 = new Date().toISOString();
+/** The made-up E2E month: one week dated this week, appended last so the page opens on it. */
+function e2eTab(day1 = BASE_CONTENT) {
+  const now = new Date();
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
+  const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+  return {
+    title: E2E_TAB, name: E2E_TAB, month: now.getMonth() + 1, year: now.getFullYear(),
+    weeks: [{
+      label: E2E_WEEK, start: iso(monday), end: iso(sunday),
+      days: [{ day: 1, content: day1 }, { day: 2, content: '[WARMUP]\n3 RxC\notro dia' }],
+    }],
+  };
+}
+
+test.describe.serial('notes and coach edits', () => {
+  let coachBefore; // the coach's sheet before any write of this group
 
   test.beforeAll(async () => {
-    test.skip(!PIN, 'COACH_PIN missing in e2e/.env');
-    // Reset the sandbox: baseline day 1, no notes.
-    const reset = await api({ action: 'editDay', pin: PIN, tab: E2E_TAB, week: E2E_WEEK, day: 1, ...BASE });
-    expect(reset, 'E2E tab missing? see README "End-to-end check"').toMatchObject({ ok: true });
+    test.skip(!PIN, 'COACH_PIN missing in .env');
+    coachBefore = coachSheet();
     for (const person of ['Ale', 'Fabita']) {
       await api({ action: 'note', tab: E2E_TAB, week: E2E_WEEK, day: 1, person, text: '' });
     }
-    before = sheet('tab', E2E_TAB);
-    const now = new Date();
-    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
-    const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
-    const week = before.weeks.find((w) => w.label === E2E_WEEK);
-    // Appended last and dated this week, so the page opens on it.
-    inject = {
-      generatedAt: T0,
-      tab: {
-        title: E2E_TAB, name: E2E_TAB, month: now.getMonth() + 1, year: now.getFullYear(),
-        weeks: [{ ...week, start: iso(monday), end: iso(sunday) }],
-      },
-    };
-  });
-
-  test('the sandbox baseline reads back through the production parser', async () => {
-    const day1 = inject.tab.weeks[0].days[0];
-    expect(day1.content).toBe(joinSections(BASE.estructura, BASE.fuerza, BASE.wod));
   });
 
   test('Ale notes weights from ready-made exercise rows; everyone sees them', async ({ browser }) => {
-    const ale = await openApp(browser, { who: 'Ale', inject });
+    const ale = await openApp(browser, { who: 'Ale', inject: e2eTab() });
     await expect(ale.page.getByRole('heading')).toHaveAccessibleName(new RegExp(`^${E2E_WEEK} .* ${E2E_TAB}$`));
     await notesLoaded(ale.page);
     const card = dayCard(ale.page, 1);
@@ -422,30 +425,34 @@ test.describe.serial('notes and coach edits (E2E tab)', () => {
     await expect(dialog).not.toContainText('5x3');
     await expect(dialog).not.toContainText('(100/70)');
     await expect(dialog).toContainText('WOD · amrap 10');
-    await typeInto(ale.page, dialog.getByRole('textbox', { name: 'kg' }), '120');
+    // Rows: Back squat [0], WOD · amrap 10 [1]. Fields lose their hint name
+    // once filled, so they are addressed by position.
+    await expect(dialog.getByRole('textbox', { name: 'kg' })).toHaveCount(1);
+    await expect(dialog.getByRole('textbox', { name: 'vueltas' })).toHaveCount(1);
+    await typeInto(ale.page, dialog.getByRole('textbox').nth(0), '120');
     await dialog.getByRole('button', { name: 'Guardar' }).click();
-    await expect(ale.page.getByText('Guardando…')).toBeVisible();
+    await expect(toast(ale.page, 'Guardando…')).toBeVisible();
     await saved(ale.page);
     await expect.poll(() => cardText(ale.page, 1)).toContain('Ale: Back squat: 120');
 
-    // Stored in the sheet, as plain text in the Notas tab.
+    // Stored as plain text in the datos spreadsheet's Notas tab.
     const note = (await api()).notes.find((n) => n.tab === E2E_TAB && n.week === E2E_WEEK && n.day === 1 && n.person === 'Ale');
     expect(note?.text).toBe('Back squat: 120');
-    const rows = sheet('range', 'Notas!A1:F500');
-    expect(rows).toContainEqual(expect.arrayContaining([E2E_TAB, E2E_WEEK, '1', 'Ale', 'Back squat: 120']));
 
     // Another device, as Fabita: sees Ale's note, may only edit her own.
-    const fabita = await openApp(browser, { who: 'Fabita', inject });
+    const fabita = await openApp(browser, { who: 'Fabita', inject: e2eTab() });
     await notesLoaded(fabita.page);
     const fcard = dayCard(fabita.page, 1);
     expect(await cardText(fabita.page, 1)).toContain('Ale: Back squat: 120');
     await expect(fcard.getByRole('button', { name: 'Anotar pesos de Ale' })).toHaveCount(0);
     await fcard.getByRole('button', { name: 'Anotar pesos de Fabita' }).click();
     const fdialog = fabita.page.getByRole('alertdialog');
-    await typeInto(fabita.page, fdialog.getByRole('textbox', { name: 'vueltas' }), `6 rondas + 3 ${RUN}`);
+    await typeInto(fabita.page, fdialog.getByRole('textbox').nth(1), `6 rondas + 3 ${RUN}`);
     await fdialog.getByRole('button', { name: 'Otro ejercicio' }).click();
-    await typeInto(fabita.page, fdialog.getByRole('textbox', { name: 'Ejercicio' }), 'plank');
-    await typeInto(fabita.page, fdialog.getByRole('textbox', { name: 'kg' }).last(), '90s');
+    // The new row adds a name field [2] and its value field [3].
+    await expect(fdialog.getByRole('textbox')).toHaveCount(4);
+    await typeInto(fabita.page, fdialog.getByRole('textbox').nth(2), 'plank');
+    await typeInto(fabita.page, fdialog.getByRole('textbox').nth(3), '90s');
     await fdialog.getByRole('button', { name: 'Guardar' }).click();
     await saved(fabita.page);
     await expect.poll(() => cardText(fabita.page, 1)).toContain(`Fabita: WOD · amrap 10: 6 rondas + 3 ${RUN} plank: 90s`);
@@ -459,9 +466,13 @@ test.describe.serial('notes and coach edits (E2E tab)', () => {
 
     // Reopening the editor brings the saved value back into its row.
     await dayCard(ale.page, 1).getByRole('button', { name: 'Anotar pesos de Ale' }).click();
-    await expect(ale.page.getByRole('alertdialog').getByRole('textbox', { name: 'kg' })).toHaveValue('120');
+    // Flutter only mirrors a field's value into the DOM once it has focus.
+    const saved120 = ale.page.getByRole('alertdialog').getByRole('textbox').nth(0);
+    await saved120.click();
+    await ale.page.waitForTimeout(400);
+    await expect(saved120).toHaveValue('120');
     // Emptying every row deletes the note.
-    await typeInto(ale.page, ale.page.getByRole('alertdialog').getByRole('textbox', { name: 'kg' }), '');
+    await typeInto(ale.page, ale.page.getByRole('alertdialog').getByRole('textbox').nth(0), '');
     await ale.page.getByRole('alertdialog').getByRole('button', { name: 'Guardar' }).click();
     await saved(ale.page);
     await expect.poll(() => cardText(ale.page, 1)).toContain('Ale: —');
@@ -472,18 +483,18 @@ test.describe.serial('notes and coach edits (E2E tab)', () => {
   });
 
   test('a wrong coach PIN is refused', async ({ browser }) => {
-    const { context, page } = await openApp(browser, { who: 'Ale', inject });
+    const { context, page } = await openApp(browser, { who: 'Ale', inject: e2eTab() });
     await page.getByRole('button', { name: 'Soy el entrenador' }).click();
     await typeInto(page, page.getByRole('alertdialog').getByRole('textbox'), `wrong-${RUN}`);
     await page.getByRole('alertdialog').getByRole('button', { name: 'Entrar' }).click();
-    await expect(page.getByText('PIN incorrecto')).toBeVisible();
+    await expect(toast(page, 'PIN incorrecto')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Soy el entrenador' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Editar día' })).toHaveCount(0);
     await context.close();
   });
 
-  test('the coach edits a day from the page and it lands in the sheet', async ({ browser }) => {
-    const { context, page } = await openApp(browser, { who: 'Ambos', inject });
+  test('the coach edits a day from the page; it shows on top of the sheet until the sheet changes', async ({ browser }) => {
+    const { context, page } = await openApp(browser, { who: 'Ambos', inject: e2eTab() });
     await notesLoaded(page);
 
     // Entering the PIN through the page, like the coach would.
@@ -495,17 +506,20 @@ test.describe.serial('notes and coach edits (E2E tab)', () => {
     await expect(card.getByRole('button', { name: 'Anotar pesos de Ale' })).toBeVisible();
     await expect(card.getByRole('button', { name: 'Anotar pesos de Fabita' })).toBeVisible();
 
-    // Longer than the block, so rows must be inserted without touching the rest.
     const edit = {
       estructura: `3 RxC\ne2e estructura ${RUN}`,
-      fuerza: `e2e fuerza ${RUN} (80/55)\nfuerza 2\nfuerza 3\nfuerza 4\nfuerza 5`,
+      fuerza: `e2e fuerza ${RUN} (80/55)\nfuerza 2`,
       wod: `amrap 7\ne2e wod ${RUN}`,
     };
     await card.getByRole('button', { name: 'Editar día' }).click();
     const dialog = page.getByRole('alertdialog');
-    await expect(dialog.getByRole('textbox', { name: /Estructura/ })).toHaveValue(BASE.estructura);
-    await expect(dialog.getByRole('textbox', { name: 'Fuerza' })).toHaveValue(BASE.fuerza);
-    await expect(dialog.getByRole('textbox', { name: 'WOD' })).toHaveValue(BASE.wod);
+    await expect(dialog).toContainText('el Sheet del entrenador no cambia');
+    for (const [name, value] of [[/Estructura/, BASE.estructura], ['Fuerza', BASE.fuerza], ['WOD', BASE.wod]]) {
+      const field = dialog.getByRole('textbox', { name });
+      await field.click(); // Flutter mirrors the value into the DOM on focus
+      await page.waitForTimeout(400);
+      await expect(field).toHaveValue(value);
+    }
     await typeInto(page, dialog.getByRole('textbox', { name: /Estructura/ }), edit.estructura);
     await typeInto(page, dialog.getByRole('textbox', { name: 'Fuerza' }), edit.fuerza);
     await typeInto(page, dialog.getByRole('textbox', { name: 'WOD' }), edit.wod);
@@ -514,33 +528,26 @@ test.describe.serial('notes and coach edits (E2E tab)', () => {
     const edited = { day: 1, content: joinSections(edit.estructura, edit.fuerza, edit.wod) };
     await expect.poll(() => cardText(page, 1)).toContain(expectedCardText(edited, -1));
 
-    // The sheet cells: day 1 rewritten into its first column, markers
-    // included; its second column, day 2 and the next week untouched.
-    const after = sheet('tab', E2E_TAB);
-    const w0 = before.weeks.findIndex((w) => w.label === E2E_WEEK);
-    const start = before.rows.findIndex((r) => r[0].toLowerCase() === 'dia 1') + 1;
-    const colA = after.rows.slice(start).map((r) => r[0]);
-    const expectedA = [...edit.estructura.split('\n'), 'Fuerza', ...edit.fuerza.split('\n'), 'WOD', ...edit.wod.split('\n')];
-    expect(colA.slice(0, expectedA.length)).toEqual(expectedA);
-    const block = (rows, from, col) => rows.slice(from).map((r) => r[col]).filter(Boolean);
-    const untilNextWeek = (rows) => rows.slice(start).findIndex((r) => /^semana/i.test(r[0]));
-    expect(after.rows.slice(start, start + untilNextWeek(after.rows)).map((r) => r[1]).filter(Boolean)).toEqual([]);
-    expect(block(after.rows, start, 2)).toEqual(block(before.rows, start, 2)); // Dia 2
-    expect(after.weeks.map((w) => w.label)).toEqual(before.weeks.map((w) => w.label));
-    expect(after.weeks.slice(w0 + 1)).toEqual(before.weeks.slice(w0 + 1));
-
-    // The production parser reads it back exactly as the coach wrote it.
-    expect(after.weeks[w0].days[0].content).toBe(edited.content);
-    expect(after.weeks[w0].days.slice(1)).toEqual(before.weeks[w0].days.slice(1));
-
-    // Logged in "Ediciones", and another device sees it before any rebuild.
+    // Logged in "Ediciones" with the day as it was ("base").
     const log = (await api()).edits.filter((e) => e.tab === E2E_TAB).at(-1);
     expect(log).toMatchObject({ week: E2E_WEEK, day: 1, ...edit });
-    const other = await openApp(browser, { who: 'Ale', inject });
+    expect(normalized(log.base)).toBe(normalized(BASE_CONTENT));
+
+    // Another device, same sheet content: sees the edit, can't edit.
+    const other = await openApp(browser, { who: 'Ale', inject: e2eTab() });
     await notesLoaded(other.page);
     await expect.poll(() => cardText(other.page, 1)).toContain(expectedCardText(edited, 0));
     await expect(dayCard(other.page, 1).getByRole('button', { name: 'Editar día' })).toHaveCount(0);
     await other.context.close();
+
+    // The coach later changes that day in his sheet: his version wins.
+    const changed = BASE_CONTENT.replace('base estructura', `cambiado en el sheet ${RUN}`);
+    const later = await openApp(browser, { who: 'Ale', inject: e2eTab(changed) });
+    await notesLoaded(later.page);
+    const text = await cardText(later.page, 1);
+    expect(text).toContain(`cambiado en el sheet ${RUN}`);
+    expect(text).not.toContain(`e2e fuerza ${RUN}`);
+    await later.context.close();
 
     // Leaving coach mode hides the edit buttons again.
     await page.getByRole('button', { name: /Modo entrenador/ }).click();
@@ -549,9 +556,12 @@ test.describe.serial('notes and coach edits (E2E tab)', () => {
     await context.close();
   });
 
+  test("the coach's sheet did not change by a single cell", async () => {
+    expect(coachSheet()).toEqual(coachBefore);
+  });
+
   test.afterAll(async () => {
     if (!PIN) return;
-    await api({ action: 'editDay', pin: PIN, tab: E2E_TAB, week: E2E_WEEK, day: 1, ...BASE });
     for (const person of ['Ale', 'Fabita']) {
       await api({ action: 'note', tab: E2E_TAB, week: E2E_WEEK, day: 1, person, text: '' });
     }

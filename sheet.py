@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """
-Read-only sheet access for the end-to-end test, reusing the production parser.
+Read-only view of the coach's training sheet for the end-to-end test,
+through crossfit-app's own parser and service account (read-only scope).
 
-    sheet.py tab <title>    -> {"rows": [[A..H], ...], "weeks": parse_weeks(rows)}
-    sheet.py range <A1>     -> raw values of a range (e.g. "Notas!A1:F200")
+    sheet.py snapshot   -> [{"title", "rows", "weeks"}] for every month tab
 
-Uses crossfit-app's parser and the same service account as the deploy
-(read-only scope). APP_DIR points at the crossfit-app checkout (default
-../crossfit-app); the key is GOOGLE_CREDENTIALS_FILE or APP_DIR/.google-credentials.json.
+APP_DIR points at the crossfit-app checkout (default ../crossfit-app); the
+key is GOOGLE_CREDENTIALS_FILE or APP_DIR/.google-credentials.json.
 """
 import json
 import os
@@ -20,19 +19,19 @@ import sheet_to_json as s  # noqa: E402
 
 
 def main():
-    what, arg = sys.argv[1], sys.argv[2]
+    if sys.argv[1:] != ["snapshot"]:
+        sys.exit("usage: sheet.py snapshot")
     creds = s.load_credentials(os.environ.get(
         "GOOGLE_CREDENTIALS_FILE", os.path.join(APP_DIR, ".google-credentials.json")))
-    if what == "tab":
-        rows = s.sheet_rows(creds, arg)
-        out = {"rows": [[s.cell(r, j) for j in range(8)] for r in rows],
-               "weeks": s.parse_weeks(rows)}
-    elif what == "range":
-        url = f"{s.API}/{s.SPREADSHEET_ID}/values/{s.requests.utils.quote(arg, safe='')}"
-        out = s.api_get(creds, url).get("values", [])
-    else:
-        sys.exit(f"unknown command {what}")
-    json.dump(out, sys.stdout, ensure_ascii=False)
+    tabs = []
+    for title in s.sheet_titles(creds):
+        if s.month_of_tab(title) is None:
+            continue
+        rows = s.sheet_rows(creds, title)
+        weeks = s.parse_weeks(rows)
+        if weeks:
+            tabs.append({"title": title, "rows": rows, "weeks": weeks})
+    json.dump(tabs, sys.stdout, ensure_ascii=False)
 
 
 if __name__ == "__main__":

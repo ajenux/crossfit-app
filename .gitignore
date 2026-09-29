@@ -36,3 +36,6 @@ build/
 .env
 .google-credentials.json
 /workouts.json
+
+### Python ###
+__pycache__/

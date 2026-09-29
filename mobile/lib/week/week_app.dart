@@ -73,9 +73,14 @@ class _Week {
 
 class _Day {
   final int number;
-  String content;
-  _Day({required this.number, required this.content});
+  final String original; // as the coach's sheet has it (workouts.json)
+  String content; // what is shown: original, or a coach edit on top of it
+  _Day({required this.number, required this.original}) : content = original;
 }
+
+/// Compares day contents ignoring blank lines and surrounding spaces.
+String _normalized(String content) =>
+    content.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).join('\n');
 
 /// Splits marked day content into (marker, lines) blocks, keeping sheet order.
 List<(String, List<String>)> _splitSections(String content) {
@@ -95,24 +100,80 @@ List<(String, List<String>)> _splitSections(String content) {
 
 /// The exercises offered as ready-made rows in the notes editor: every
 /// Fuerza line, Estructura lines that ramp up ("subiendo", "heavy"), and one
-/// row for the WOD score. The coach's "(X/Y)" weights are dropped so the
-/// names stay short.
+/// row for the WOD score, each reduced to the exercise's name.
 List<String> _noteExercises(String content) {
-  final pair = RegExp(r'\s*\([\d,\.]+/[\d,\.]+\)');
   final rampUp = RegExp(r'subiendo|heavy|pesad', caseSensitive: false);
   final rxc = RegExp(r'^\d+\s*RxC$', caseSensitive: false);
-  String clean(String l) => l.replaceAll(pair, '').replaceAll(RegExp(r'\s+'), ' ').trim();
   final out = <String>[];
-  for (final (marker, lines) in _splitSections(content)) {
-    if (marker == '[WARMUP]') {
-      out.addAll(lines.where((l) => rampUp.hasMatch(l) && !rxc.hasMatch(l)).map(clean));
-    } else if (marker == '[FUERZA]') {
-      out.addAll(lines.map(clean));
-    } else if (marker == '[WOD]' && lines.isNotEmpty) {
-      out.add('WOD · ${clean(lines.first)}');
+  void add(String? name) {
+    if (name != null && !out.any((o) => o.toLowerCase() == name.toLowerCase())) {
+      out.add(name);
     }
   }
-  return out.toSet().toList();
+
+  for (final (marker, lines) in _splitSections(content)) {
+    if (marker == '[WARMUP]') {
+      lines.where((l) => rampUp.hasMatch(l) && !rxc.hasMatch(l)).map(_exerciseName).forEach(add);
+    } else if (marker == '[FUERZA]') {
+      lines.map(_exerciseName).forEach(add);
+    } else if (marker == '[WOD]' && lines.isNotEmpty) {
+      final first = lines.first.replaceAll(RegExp(r'\s*\([\d,\.]+/[\d,\.]+\)'), '');
+      add('WOD · ${first.replaceAll(RegExp(r'\s+'), ' ').trim()}');
+    }
+  }
+  return out;
+}
+
+RegExp _re(String p) => RegExp(p, caseSensitive: false);
+
+// Leading sets/reps/timing: "5x2", "4x (1+1)", "3x 6/6 +", "emom x12", "10",
+// "70 mts", "6 series:". Applied repeatedly since they stack.
+final _leading = [
+  _re(r'^\d+\s*series:\s*'),
+  _re(r'^emom\s*x\s*\d+\s*'),
+  _re(r'''^e\d+["']?\s*x\s*\d+:?\s*'''),
+  _re(r'^\d+\s*x\s*\(?[\d+/]*\)?\d*\s*\+?\s*'),
+  _re(r'''^["']\s*\+?\s*'''),
+  _re(r'^\d+([.,]\d+)?\s*(mts|m|cal)?\s+'),
+  _re(r'^(mts|m|cal)\s+'),
+  _re(r'^x\s+'),
+];
+
+/// The exercise named by a sheet line, without sets, reps, weights or
+/// comments: "5x2 deadlift (125/95) foco velocidad" -> "Deadlift",
+/// "emom x12 1 power clean (subiendo)" -> "Power clean". Null when the line
+/// names no exercise ("6 / 4 /2", a comment in parentheses). The rules were
+/// checked against every Fuerza line in the sheet.
+String? _exerciseName(String line) {
+  var s = line.replaceFirst(_re(r'''^\s*e\d+["']?\s*x\s*\d+:?\s*'''), ''); // E30"x12:
+  s = s
+      .replaceAll(RegExp(r'\([^)]*\)?'), '') // (125/95), (rest 1', (subiendo)
+      .replaceAll(RegExp(r'//.*$'), '') // "// sandbag" alternatives
+      .replaceAll(RegExp(r',.*$'), '') // ", descanso completo"
+      .replaceAll(_re(r'\b(foco|rest|comienzo)\b.*$'), '')
+      .replaceAll(_re(r'\b(subiendo(\s+peso)?|heavy|rm|tecnico|liviano)\b'), '')
+      .replaceAll(_re(r'\d+\s*on\s*x\s*\d+\s*off'), '') // tabata timing
+      .replaceAll(_re(r'\b1\s*leg\b'), 'ONELEG') // keep "1 leg" whole
+      .replaceAll(_re(r'''\+\s*\d*x\d+["']?\s*'''), '+ ') // "+ 3x20 curl"
+      .replaceAll(RegExp(r'''\d+([.,]\d+)?/\d+([.,]\d+)?["']?'''), '') // 20/15, 6/6
+      .replaceAll(RegExp(r'''\d+["']'''), '') // 20", 10'
+      .trim();
+  String before;
+  do {
+    before = s;
+    for (final p in _leading) {
+      s = s.replaceFirst(p, '').trim();
+    }
+  } while (s != before);
+  s = s
+      .replaceAll(_re(r'\+\s*\d+\s*(reps\b)?'), '+ ') // "+ 15 tricep", "+ 8 reps"
+      .replaceAll(RegExp(r'\s*\+\s*'), ' + ')
+      .replaceAll(RegExp(r'^(\s*\+\s*)+|(\s*\+\s*)+$'), '')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim()
+      .replaceAll('ONELEG', '1 leg');
+  if (!_re(r'[a-záéíóúñ]').hasMatch(s)) return null;
+  return s[0].toUpperCase() + s.substring(1);
 }
 
 /// Inverse of [_splitSections] for the three editable parts of a day.
@@ -134,9 +195,15 @@ String _joinSections(String estructura, String fuerza, String wod) {
 
 /// Minimal client for apps_script/Code.gs. Throws with the script's message.
 class _Api {
+  /// Google now and then answers with an HTML error page instead of the
+  /// script's JSON; reading is safe to repeat, so try once more.
   static Future<Map<String, dynamic>> get() async {
-    final res = await http.get(Uri.parse('$_apiUrl?action=data'));
-    return _decode(res);
+    try {
+      return _decode(await http.get(Uri.parse('$_apiUrl?action=data')));
+    } on FormatException {
+      await Future.delayed(const Duration(seconds: 2));
+      return _decode(await http.get(Uri.parse('$_apiUrl?action=data')));
+    }
   }
 
   // text/plain keeps it a "simple" request, so the browser skips the CORS
@@ -226,7 +293,7 @@ class _WeekScreenState extends State<WeekScreen> {
             end: DateTime.parse(w['end'] as String),
             days: [
               for (final d in w['days'] as List)
-                _Day(number: d['day'] as int, content: d['content'] as String),
+                _Day(number: d['day'] as int, original: d['content'] as String),
             ],
           ));
         }
@@ -240,7 +307,7 @@ class _WeekScreenState extends State<WeekScreen> {
       });
       // Not awaited: the Apps Script takes seconds to answer, so the week
       // shows first and notes/edits fill in when they arrive.
-      _loadRemote(weeks, generatedAt);
+      _loadRemote(weeks);
       if (firstVisit && mounted) _askWhoIsThis();
     } catch (e) {
       setState(() {
@@ -252,11 +319,12 @@ class _WeekScreenState extends State<WeekScreen> {
 
   static String _noteKey(String tab, String week, int day) => '$tab|$week|$day';
 
-  /// Reads notes and coach edits from the Apps Script. Edits newer than
-  /// workouts.json replace that day's content, so they show up right away
-  /// instead of after the next daily build. A failure here never blocks the
+  /// Reads notes and coach edits from the Apps Script. A coach edit replaces
+  /// a day only while that day is still what it was when the edit was made
+  /// (its "base"); once the coach changes the day in his sheet, his version
+  /// wins. Edits never reach his sheet. A failure here never blocks the
   /// training itself: the error is shown and the JSON content is kept.
-  Future<void> _loadRemote(List<_Week> weeks, String? generatedAt) async {
+  Future<void> _loadRemote(List<_Week> weeks) async {
     if (_apiUrl.isEmpty) return;
     setState(() {
       _apiError = null;
@@ -269,17 +337,17 @@ class _WeekScreenState extends State<WeekScreen> {
         final k = _noteKey(n['tab'] as String, n['week'] as String, n['day'] as int);
         (notes[k] ??= {})[n['person'] as String] = n['text'] as String;
       }
-      final built = DateTime.tryParse(generatedAt ?? '');
       final byKey = {
         for (final w in weeks)
           for (final d in w.days) _noteKey(w.title, w.label, d.number): d,
       };
       // Rows come oldest first, so the last edit of a day wins.
       for (final e in data['edits'] as List) {
-        final updated = DateTime.tryParse(e['updated'] as String? ?? '');
-        if (built != null && updated != null && !updated.isAfter(built)) continue;
         final day = byKey[_noteKey(e['tab'] as String, e['week'] as String, e['day'] as int)];
-        day?.content = _joinSections(
+        if (day == null || _normalized(e['base'] as String? ?? '') != _normalized(day.original)) {
+          continue;
+        }
+        day.content = _joinSections(
             e['estructura'] as String, e['fuerza'] as String, e['wod'] as String);
       }
       if (!mounted) return;
@@ -351,6 +419,7 @@ class _WeekScreenState extends State<WeekScreen> {
       'estructura': estructura,
       'fuerza': fuerza,
       'wod': wod,
+      'base': d.original,
     }, onOk: () => d.content = _joinSections(estructura, fuerza, wod));
   }
 
@@ -993,7 +1062,7 @@ class _EditDayDialogState extends State<_EditDayDialog> {
               _field('Estructura (incluye "N RxC")', _estructura),
               _field('Fuerza', _fuerza),
               _field('WOD', _wod),
-              Text('Se guarda en el Sheet, en la pestaña del mes.',
+              Text('Se guarda aparte: el Sheet del entrenador no cambia.',
                   style: Theme.of(context).textTheme.bodySmall),
             ],
           ),

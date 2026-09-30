@@ -10,7 +10,7 @@ Usage:
     GOOGLE_CREDENTIALS_JSON='{...}' python3 tools/sheet_to_json.py out/workouts.json
     python3 tools/sheet_to_json.py --credentials .google-credentials.json out/workouts.json
 
-The parsing rules mirror GoogleSheetsService.java: one month per tab, weeks
+The parsing rules (ported from the old backend): one month per tab, weeks
 start at a "Dia 1" header row (optionally preceded by a "Semana N" label),
 each day uses two columns (main block + WOD block), and section markers
 [WARMUP] / [FUERZA] / [WOD] are inserted by content heuristics.

@@ -2,10 +2,12 @@
 
 Goal: Ale and Fabita see their current training week from the coach's Google
 Sheet without opening the sheet. One screen, no login, no backend, no paid hosting.
+The coach's sheet is only ever read; the few writes go to our own spreadsheet
+"Mi semana — datos".
 
 **Live:** https://ajenux.github.io/crossfit-app
 **Branch:** `develop` (merge to `master` deploys)
-**Last updated:** 2026-09-21
+**Last updated:** 2026-09-30
 
 ---
 
@@ -30,6 +32,18 @@ Sheet without opening the sheet. One screen, no login, no backend, no paid hosti
       daily at 05:00 UTC, or manually; `GOOGLE_CREDENTIALS_JSON` secret set
 - [x] Verified in the browser against the live URL: shows Septi → Semana 4
       (week of 2026-09-21)
+- [x] Weight notes ("Pesos logrados") per person and day, shared across
+      devices; each person edits their own line. The editor offers the day's
+      exercises as ready-made rows (Fuerza lines, ramp-up Estructura lines,
+      one WOD row), named plainly ("Deadlift")
+- [x] Coach profile ("Entrenador", PIN) edits any day and both notes; the
+      edit is shown on top of the sheet while the day is unchanged in it
+- [x] `apps_script/Code.gs` — Apps Script web app bound to "Mi semana —
+      datos" (`@OnlyCurrentDoc`), tabs `Notas` and `Ediciones`; its URL is the
+      `APPS_SCRIPT_URL` repo variable; without it the page is a plain viewer
+- [x] The week shows before notes arrive; "Guardando…" while a save is in
+      progress
+- [x] End-to-end check (Playwright) kept in a separate private repo
 - [x] README and CLAUDE.md describe this and only this
 
 ## Pending
@@ -55,3 +69,7 @@ Sheet without opening the sheet. One screen, no login, no backend, no paid hosti
 | "Semana 1" = week containing the 1st of the month | Checked against the sheet: today (Mon 2026-09-21) is the coach's Semana 4 of September, which only fits this convention; it also explains why months have 4–5 weeks |
 | Year inferred from tab order | Tab titles have no year; walking backwards and decrementing when the month goes up is unambiguous for a sheet kept in order |
 | Backend and multi-user app deleted from the repo (2026-09-21) | They were not deployed and only added noise; the history is still in git if ever needed |
+| Notes and coach edits through one Apps Script (2026-09-29) | Shared across devices without a server of our own or paid hosting; asked for explicitly |
+| All writes go to "Mi semana — datos", never the coach's sheet | His sheet is his; `@OnlyCurrentDoc` makes the script unable to open it even by mistake |
+| Coach edits stored as overlays with the day's original ("Base") | His sheet stays untouched, and once he changes the day there his version wins, so an old edit never hides a newer change |
+| Notes as plain text, one `exercise: value` line | Readable straight in the datos tab; no schema to maintain |

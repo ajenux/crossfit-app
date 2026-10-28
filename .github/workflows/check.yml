@@ -54,3 +54,78 @@ jobs:
         if: hashFiles('mobile/test/**/*_test.dart') != ''
         working-directory: mobile
         run: flutter test
+
+  # The functional tests, against this change's own build — not the published
+  # page, which is still the previous master. They read the real sheet and
+  # write to the "Mi semana — datos" sandbox, so they need the secrets: a pull
+  # request from a fork doesn't get them, and this job fails there.
+  e2e:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Every run writes to the same sandbox tab, so two runs never overlap;
+    # the second waits instead of cancelling the first.
+    concurrency:
+      group: e2e-sandbox
+      cancel-in-progress: false
+
+    env:
+      GOOGLE_CREDENTIALS_FILE: ${{ github.workspace }}/.google-credentials.json
+      PYTHON: python3
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Read the training sheet
+        env:
+          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+        run: |
+          pip install --quiet google-auth requests
+          printf '%s' "$GOOGLE_CREDENTIALS_JSON" > "$GOOGLE_CREDENTIALS_FILE"
+          python3 tools/sheet_to_json.py workouts.json
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # Same build as the deploy, served from the root instead of /crossfit-app/.
+      - name: Build the page
+        working-directory: mobile
+        env:
+          APPS_SCRIPT_URL: ${{ vars.APPS_SCRIPT_URL }}
+        run: |
+          flutter pub get
+          flutter build web --release \
+            -t lib/main.dart \
+            --pwa-strategy=none \
+            --base-href=/ \
+            --dart-define=APPS_SCRIPT_URL="$APPS_SCRIPT_URL"
+          cp ../workouts.json build/web/workouts.json
+
+      - name: Serve it
+        run: |
+          python3 -m http.server 8765 --directory mobile/build/web > /dev/null 2>&1 &
+          for _ in $(seq 1 20); do curl -sf http://localhost:8765/ > /dev/null && exit 0; sleep 1; done
+          exit 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      # The runner already has Google Chrome, which is the browser the tests ask
+      # for; nothing to download. Without COACH_PIN the coach part is skipped.
+      - name: Functional tests
+        working-directory: e2e
+        env:
+          BASE_URL: http://localhost:8765/
+          COACH_PIN: ${{ secrets.COACH_PIN }}
+        run: |
+          npm ci
+          npx playwright test

@@ -31,7 +31,7 @@ from the FL1 project and adapted.
 | `flutter analyze`          | No issues                                       |
 | Unit tests                 | 0 — none exist in this repo yet                 |
 | Integration tests          | 0                                               |
-| Functional tests           | 15, in the private `crossfit-app-e2e` repo, covering the viewer |
+| Functional tests           | 16, in `e2e/`, covering the viewer; they run on every pull request |
 
 ---
 
@@ -99,6 +99,7 @@ an Apps Script web app with one link per athlete).
 | Keeping the backend replaceable | Business rules in our code; the app reaches Supabase only through its own data layer | Moving to Railway later means moving the data and that layer, not the app | Calling Supabase from the screens |
 | Platform | Installable web app (PWA), built with Flutter | One link, an icon on the home screen, US$0, instant updates; the same Flutter code can go to the stores later | Plain web page (doesn't feel like an app); store apps (US$99/year Apple, US$25 Google, review per change) |
 | How an exercise is shown | An exercise catalog: each entry has the exercise's name variants, a short reference video from the internet (YouTube, embedded at the right second, looping), 2–3 short cues, and a scaling or substitute | A 3-second loop plus cues answers ~99% of "how is this done?" for athletes training remotely | Recording our own clips; cutting or downloading others' videos; ExerciseDB (paid API key, gym-oriented catalog) |
+| Repositories | One public repo: the functional tests moved from the private `crossfit-app-e2e` into `e2e/`, with their history, and run in the check of every pull request | One place for code and tests, as in FL1; nothing in the tests is secret (the PIN comes from a gitignored `.env` or a repository secret; the sheet ID and the Apps Script URL were already public); GitHub Pages and branch protection stay free | Making the repo private (Pages and branch protection need GitHub Pro, ≈ US$4/month, or moving hosting to Cloudflare Pages); a new repo replacing both (loses history and pull requests, and the app's URL changes) |
 | AI | Only on our side, to draft catalog entries (match name variants, propose cues and a scaling), run locally with Ollama; **the coach reviews every entry** before athletes see it | It's useful and a way to learn, without risk to athletes or per-use cost | AI inside the athlete's app (key exposed, cost per use, answers that bypass the coach) |
 
 ---
@@ -127,6 +128,8 @@ an Apps Script web app with one link per athlete).
 | **Branch protection on `master`** | Pending the user's approval. The repo is public, so GitHub's free plan allows requiring the `check` workflow before merging — stronger than FL1's merge script, which exists only because FL1's repo is private. |
 | **`develop` branch** | Obsolete with one branch per change from `master`. Deleting it (local and remote, plus `macbook-works`) is pending the user's approval. |
 | **Service account write access** | As of 2026-09-29 (Drive permissions on the sheet): the user's Google account is an editor; the service account and Fabita's account are readers. Writing notes to the sheet needs either the coach to make the service account an editor, or the writes to run as the user's account. To be decided when the sheet adapter is built. |
+| **The old `crossfit-app-e2e` repo** | To be archived (read-only, reversible) once this move is merged; deleted later if nothing is missed. |
+| **`COACH_PIN` secret** | The functional tests in CI skip the coach part until the user adds the `COACH_PIN` repository secret. |
 | **Viewer leftovers** | `apps_script/Code.gs` and "Mi semana — datos" (notes, coach edits with PIN) serve the viewer only; they go away with it. |
 
 ---
@@ -157,7 +160,7 @@ because it's what runs today.
       while the day is unchanged in the sheet
 - [x] `apps_script/Code.gs` bound to "Mi semana — datos", tabs `Notas` and
       `Ediciones`
-- [x] End-to-end check (Playwright) in the private `crossfit-app-e2e` repo
+- [x] End-to-end check (Playwright) in `e2e/` (a private repo until 2026-10-28)
 
 ### The viewer's decisions
 

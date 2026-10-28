@@ -24,7 +24,7 @@ The detail is in `TESTING.md`; the summary:
 | A business rule                         | The domain layer, as a pure function with its own unit test                                                           |
 | Something that reads or writes the coach's sheet | The sheet adapter's tests, against a fixture copy of the sheet's real layout                                 |
 | Something that touches the database or a role | Integration test: it does what it says, and a role that can't gets refused                                      |
-| A screen                                | Functional test (Playwright, in the private `crossfit-app-e2e` repo): reachable, visible, no overflow at 390 px, with a screenshot |
+| A screen                                | Functional test (Playwright, in `e2e/`): reachable, visible, no overflow at 390 px, with a screenshot |
 
 **Never close a task with "open it and take a look."** If it can't be
 claimed that something works without a person looking at it, a functional
@@ -39,7 +39,8 @@ coach sheet is read-only until its coach says otherwise.
 All five, not four. Nothing counts as closed before that.
 
 1. **The check is green**: `flutter analyze`, the unit and integration
-   tests, and the functional tests in `crossfit-app-e2e`.
+   tests, and the functional tests in `e2e/` — all of them run in the `check`
+   workflow of every pull request.
 2. **The three documents are up to date**: `PLAN.md` (status and
    decisions), `README.md` (how it works), `TESTING.md` (what each layer
    covers). All three, not whichever one comes to mind.

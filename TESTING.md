@@ -8,17 +8,19 @@ heading is in [PLAN.md](PLAN.md).
 | --------------- | -------------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------- | -------- |
 | **Unit**        | `mobile/test/` (Dart), `tools/` (Python, pytest)   | Nothing. Pure functions.                             | Is the business rule correct?                                           | 0        |
 | **Integration** | Next to the adapter or data layer it covers        | A fixture copy of the sheet; a local Supabase        | Do the pieces fit together? Does a role that can't get refused?        | 0        |
-| **Functional**  | `crossfit-app-e2e/app.spec.mjs` (private repo)     | The published page, in Chrome                        | Does this look right and work, as a person would use it?                | 15       |
+| **Functional**  | `e2e/app.spec.mjs`                                 | The built page, in Chrome, with the real sheet       | Does this look right and work, as a person would use it?                | 16       |
 
 ```bash
 cd mobile && flutter analyze      # types and lint
 cd mobile && flutter test         # unit (once mobile/test/ exists)
-cd ../crossfit-app-e2e && npx playwright test   # functional, see its README
+cd e2e && npx playwright test     # functional, against the published page; see e2e/README.md
 ```
 
-**Functional tests live in a private repo on purpose**: they read the real
-sheet and write to real spreadsheets, with the service account's key, and
-this repo is public.
+**Functional tests run against the real thing**: they read the real sheet and
+write only to a sandbox tab of "Mi semana — datos", with the service
+account's key from a gitignored file locally and from the repository's
+secrets in CI. They lived in a private repo until 2026-10-28; nothing in them
+is secret, and one repo lets them run on every pull request.
 
 ## Why three layers and not one
 
@@ -37,8 +39,7 @@ a screenshot.
 
 | When | What runs | Answers |
 | --- | --- | --- |
-| On every pull request and push to `master` | `.github/workflows/check.yml`: `flutter analyze`, the unit tests, the Python tools compiled | Did what was just written break something? |
-| Before merging | The functional tests in `crossfit-app-e2e`, by hand | Does it still work as a person uses it? |
+| On every pull request and push to `master` | `.github/workflows/check.yml`: `flutter analyze`, the unit tests, the Python tools compiled; then the functional tests against that change's own build, served locally | Did what was just written break something, as a person would see it? |
 
 A nightly run of everything, like FL1's, is not set up: with the viewer
 alone it would add little. It becomes worth it once the app depends on dates
@@ -46,10 +47,11 @@ and on a database that changes with nobody touching the code.
 
 ## What's covered today
 
-- **The viewer, functionally**: the 15 tests in `crossfit-app-e2e` cover the
+- **The viewer, functionally**: the 16 tests in `e2e/` cover the
   published `workouts.json` against the sheet, opening on today's week,
   weights per person, notes, coach edits, and that the coach's sheet didn't
-  change during the run. Its README lists them.
+  change during the run. `e2e/README.md` lists them. Without the `COACH_PIN`
+  secret, the coach part is skipped.
 - **Nothing at unit or integration level.** The viewer's rules live as
   private functions in `mobile/lib/week/week_app.dart`.
 

@@ -24,14 +24,63 @@ leaves notes the coach reads and answers. The decisions taken so far are in
 
 **Nothing of the redefined app is built yet.** The process rules (tests per
 layer, branch per change, this plan as the north) were set up first, copied
-from the FL1 project and adapted.
+from the FL1 project and adapted (#32), and the functional tests moved into
+this repo to run on every pull request (#33).
 
 | Check                      | Status                                          |
 | -------------------------- | ----------------------------------------------- |
 | `flutter analyze`          | No issues                                       |
 | Unit tests                 | 0 — none exist in this repo yet                 |
 | Integration tests          | 0                                               |
-| Functional tests           | 16, in `e2e/`, covering the viewer; they run on every pull request |
+| Functional tests           | 16, in `e2e/`, covering the viewer. In CI, 12 run and 4 are skipped until the `COACH_PIN` secret exists; locally, all 16 pass |
+
+### Where the last session stopped (2026-10-28)
+
+Work happens on several machines; this is what the next session needs to
+know without the conversation that produced it.
+
+- **Every decision of the redefinition is in "Decisions made"**; nothing
+  agreed lives only in a chat.
+- **Nothing gets started until this plan is up to date on `master`.** That
+  was the user's explicit rule at the end of the session.
+- **The next conversation is the first version's scope** (question 1 under
+  "What's still undecided"). Design work waits for it.
+- **The user wants questions asked only when they need the user's opinion
+  or the coach's intent.** Anything about the coach's flow gets checked
+  first in the sheet and in Dotta Crew (the link with the athlete's key is
+  the user's; ask for it if it isn't at hand), and nothing already answered
+  here gets asked again.
+
+---
+
+## Where it's heading, and why
+
+What the user laid out on 2026-10-28, in the order it's meant to happen.
+
+1. **Now: the app reads the coach's sheet.** He's comfortable keeping
+   everything there. Before writing a week he reads what each athlete noted
+   the week before and raises or lowers loads; whatever the app does has to
+   keep that working.
+2. **In between, our own model.** The plans can be copied into our database
+   — the sheet is a source, not the model.
+3. **Later, a proposal to the coach**: "give me access and I'll set up the
+   plans of all your athletes" in the app. He'd move off the sheet only once
+   it's stable, he likes it, and it's tidier — and tidier means simpler, not
+   more complex.
+4. **Replacing Dotta Crew**: yes, but not yet; only at that point.
+5. **Other coaches**, each with his own name and logo, after that.
+
+What runs through all of it:
+
+- **The coach is the author and a first-class user**, not an outside
+  system: no closed ecosystem. He'll write plans in the app at some point,
+  read every athlete's notes, and answer them.
+- **Athletes often train alone**, in another country or time zone, without
+  the coach at hand; they must be able to solve "how is this done?" by
+  themselves. Ale and Fabi are the exception: they train together, in
+  person, with the coach, which is also why they share one plan.
+- **Real value, good engineering, no over-engineering.** Practicality and,
+  above all, usability come first.
 
 ---
 
@@ -41,8 +90,10 @@ from the FL1 project and adapted.
    what happens with the current viewer and `~/crossfit_flutter`. Open
    question 1 below; it blocks the rest.
 2. **Process pieces that need the user's approval** (see "Debt and risks"):
-   branch protection on `master`, retiring `develop`, the `check` workflow's
-   first run.
+   the `COACH_PIN` secret (the user adds it), archiving the old
+   `crossfit-app-e2e` repo, branch protection on `master` requiring the
+   check, deleting the `develop` and `macbook-works` branches, enabling the
+   pre-push hook on each machine.
 3. **Design the core model** — athletes, coaches, plans, phases, exercises,
    notes, coach replies — as domain types with pure rules and their tests.
 4. **The sheet adapter** — reads the shared plan sheet into the core model,

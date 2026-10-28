@@ -41,6 +41,26 @@ a screenshot.
 | --- | --- | --- |
 | On every pull request and push to `master` | `.github/workflows/check.yml`: `flutter analyze`, the unit tests, the Python tools compiled; then the functional tests against that change's own build, served locally | Did what was just written break something, as a person would see it? |
 
+### What CI costs, and the rules that keep it at zero
+
+FL1 ran out of GitHub Actions storage twice (2026-09-28 at 100% of the
+account's 0.5 GB, 2026-10-14 at 90%): screenshot evidence of ~21 MB per push,
+kept for days, and storage billed by the hour. That quota is **per account**,
+shared with FL1 and every other private repo, so these rules hold here too:
+
+- **Minutes cost nothing here**: standard runners are free in public repos.
+  The account's monthly minutes belong to the private repos.
+- **A newer push cancels the older run** (`cancel-in-progress`), except where
+  runs share the sandbox tab, which queue instead.
+- **Every job has a `timeout-minutes`**: a run that hangs with no cap burns
+  an hour silently.
+- **Any artifact gets `retention-days: 1`** (a run is looked at while it
+  matters; an older one is a re-run away), **and `continue-on-error: true`**:
+  storage running out must never turn the check red over the account instead
+  of the code. No artifacts are uploaded today.
+- **The cache isn't the account's storage**: the Flutter and npm caches use
+  the per-repository cache allowance (10 GB), separate from the quota above.
+
 A nightly run of everything, like FL1's, is not set up: with the viewer
 alone it would add little. It becomes worth it once the app depends on dates
 and on a database that changes with nobody touching the code.

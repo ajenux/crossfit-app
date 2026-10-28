@@ -57,8 +57,10 @@ All five, not four. Nothing counts as closed before that.
   commit** — never fast-forward: the merge commit is the anchor for
   reverting in one piece. `master` deploys.
 - **Nothing red gets into `master`.** The `check` workflow runs on every
-  pull request. Nobody pushes to `master` directly: the hook in `.githooks/`
-  blocks it, enabled with `git config core.hooksPath .githooks`.
+  pull request, and branch protection on `master` requires its `check` and
+  `e2e` jobs green before merging, for admins too. Nobody pushes to `master`
+  directly: GitHub refuses it, and the hook in `.githooks/` says so earlier,
+  enabled with `git config core.hooksPath .githooks`.
 - **Staging, committing, pushing and merging are the user's decision.**
   Ask first, every time. No merging in passing, nor "to try it."
 - **`git fetch` before branching.** More than one machine works on this repo.

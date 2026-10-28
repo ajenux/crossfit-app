@@ -154,7 +154,7 @@ python3 -m http.server 8765 --directory build/web
 
 ## Deploy
 
-Push to `master`, or trigger manually:
+A merge to `master`, or trigger manually:
 
 ```bash
 gh workflow run deploy-web.yml --ref master
@@ -164,5 +164,10 @@ The cron run every morning picks up whatever the coach added to the sheet.
 
 ## Branching
 
-- `develop` — work here
-- `master` — what is deployed
+- `master` — what is deployed. Nothing is pushed to it directly: one branch
+  per change, cut from `master`, a pull request with the `check` workflow
+  green, and a merge commit. `.githooks/pre-push` blocks direct pushes
+  (`git config core.hooksPath .githooks`).
+
+The rules for working on the project are in `CLAUDE.md`, the plan in
+`PLAN.md`, and how it's tested in `TESTING.md`.

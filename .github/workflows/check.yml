@@ -1,0 +1,56 @@
+name: check
+
+# The project's check, on every pull request and every push to master.
+#
+# On a pull request GitHub tests the result of the merge, not the branch's
+# tip: that's what will land on master, which is what deploys.
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+# A new push to the same branch cancels the previous run: what matters is
+# whether the tip is right, not every step on the way.
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # The sheet tools have no tests yet; compiling them at least catches a
+      # syntax error before the deploy does.
+      - name: Compile the Python tools
+        run: python3 -m py_compile tools/*.py
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        working-directory: mobile
+        run: flutter pub get
+
+      - name: Analyze
+        working-directory: mobile
+        run: flutter analyze
+
+      # Runs once mobile/test/ exists; until then there is nothing to run and
+      # `flutter test` would fail on the missing folder.
+      - name: Unit tests
+        if: hashFiles('mobile/test/**/*_test.dart') != ''
+        working-directory: mobile
+        run: flutter test

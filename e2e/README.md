@@ -1,9 +1,10 @@
-# crossfit-app-e2e
+# End-to-end check
 
-Private end-to-end check for [crossfit-app](https://github.com/ajenux/crossfit-app).
+The functional tests of the app (see `TESTING.md` at the repo root). They
+lived in the private repo `ajenux/crossfit-app-e2e` until 2026-10-28.
 
 `app.spec.mjs` (Playwright, uses the Chrome installed on the machine)
-checks everything crossfit-app promises against the real thing — the published page, its
+checks everything the week viewer promises against the real thing — the published page, its
 `workouts.json`, the Apps Script and the coach's sheet:
 
 - `workouts.json` is fresh (< 26 h), well formed, has no empty Fuerza
@@ -22,31 +23,23 @@ checks everything crossfit-app promises against the real thing — the published
 - **the coach's sheet did not change by a single cell** during the run.
 
 Writes go only to "Mi semana — datos", under a made-up `E2E` month that the
-page never shows on its own (the test injects it into `workouts.json`).
-The coach's sheet is only read.
+page never shows on its own (the test injec## Setup
 
-## Setup on a new machine
-
-This repo is private on purpose; it lives next to the public app repo and
-reuses its parser, virtualenv and service-account key.
+It reuses the repo root's parser, virtualenv and service-account key.
 
 ```bash
-mkdir -p ~/Projects && cd ~/Projects
-git clone https://github.com/ajenux/crossfit-app.git
-git clone https://github.com/ajenux/crossfit-app-e2e.git
-
-# crossfit-app: venv + key (see its README "Run locally")
-cd crossfit-app
+# at the repo root: venv + key (see the root README, "Run locally")
 python3 -m venv .venv && .venv/bin/pip install google-auth requests
-# copy .google-credentials.json here (not in git; keep it in your password manager)
+# copy .google-credentials.json there (not in git; keep it in your password manager)
 
-# this repo
-cd ../crossfit-app-e2e
+cd e2e
 npm install
 cp .env.example .env   # then set COACH_PIN with an editor
 ```
 
 Needs Google Chrome installed (Playwright drives it; no browser download).
+
+ download).
 If the app checkout is elsewhere, set `APP_DIR`.
 
 ## Run

@@ -27,9 +27,6 @@ reports; it changes nothing.
    and `gh run list --workflow check.yml --limit 1`. A failed one goes first
    in the summary.
 
-4. **The private e2e repo.** `git -C ../crossfit-app-e2e fetch --prune` and
-   its `git status -sb`, if it's cloned next to this one.
-
 ## The summary, in Spanish, short
 
 - **Novedades**: merges since the last session, open pull requests, the

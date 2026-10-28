@@ -12,8 +12,8 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-// The crossfit-app checkout: its parser, venv and service-account key are reused.
-const APP_DIR = path.resolve(process.env.APP_DIR || path.join(HERE, '..', 'crossfit-app'));
+// The repo root: its parser, venv and service-account key are reused.
+const APP_DIR = path.resolve(process.env.APP_DIR || path.join(HERE, '..'));
 const PYTHON = process.env.PYTHON || path.join(APP_DIR, '.venv', 'bin', 'python');
 const API = process.env.APPS_SCRIPT_URL ||
   'https://script.google.com/macros/s/AKfycbxz5ULYQTK9IKqur30MJHN7utMZxUH7XLvp2Dw9hsFjBpgZny_S8-mJHj8fClIBdHCG0A/exec';

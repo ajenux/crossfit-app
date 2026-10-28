@@ -1,0 +1,25 @@
+#!/bin/sh
+#
+# Nothing gets pushed to master directly.
+#
+# Everything goes through a pull request, and a pull request is merged only
+# with the check green. This hook closes the shortcut: `git push origin
+# master` would skip both — and pushing to master deploys.
+#
+# Enabled with `git config core.hooksPath .githooks`.
+# For a one-off exception: `git push --no-verify`.
+
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  case "$remote_ref" in
+    refs/heads/master)
+      echo ""
+      echo "  Nothing gets pushed to master directly."
+      echo ""
+      echo "  Open a pull request; it gets merged once the check is green."
+      echo ""
+      exit 1
+      ;;
+  esac
+done
+
+exit 0

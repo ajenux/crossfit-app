@@ -210,6 +210,8 @@ because it's what runs today.
 - [x] `apps_script/Code.gs` bound to "Mi semana — datos", tabs `Notas` and
       `Ediciones`
 - [x] End-to-end check (Playwright) in `e2e/` (a private repo until 2026-10-28)
+- [x] Notes mirrored to an `Avances` tab in the coach's sheet (asked by the
+      coach, 2026-10-24), one row per exercise line
 
 ### The viewer's decisions
 

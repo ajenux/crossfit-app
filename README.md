@@ -10,9 +10,11 @@ page on GitHub Pages plus a scheduled GitHub Action, and one Google Apps
 Script for the few things a static page can't do (weight notes and coach
 edits).
 
-**The coach's sheet is never written to.** It is only read, by the daily
-build, with a read-only service account. Everything the page saves goes to
-a separate spreadsheet of ours, "Mi semana — datos".
+**The coach's sheet is only written in one tab, `Avances`**, which the Apps
+Script creates and owns: a copy of our notes so he can follow our progress.
+The rest of his sheet is only read, by the daily build, with a read-only
+service account. Everything the page saves goes first to a separate
+spreadsheet of ours, "Mi semana — datos".
 
 ## How it works
 
@@ -28,6 +30,7 @@ Browser
    └─ apps_script/Code.gs  web app bound to "Mi semana — datos" (optional)
         GET  notes + coach edits
         POST a weight note, or a coach edit of a day
+        └─ after each note, rewrites the coach's `Avances` tab from `Notas`
 ```
 
 ### What the page does
@@ -84,9 +87,10 @@ rules.
 
 `apps_script/Code.gs` runs as a Google Apps Script web app bound to our own
 spreadsheet ["Mi semana — datos"](https://docs.google.com/spreadsheets/d/16tadRfWZ1V1MMW9OBFo-ydMz-IP2BXivwr16hYsJuGo/edit)
-(owned by ajenux@gmail.com). It is marked `@OnlyCurrentDoc`, so Google only
-lets it open that spreadsheet — it can't reach the coach's sheet even by
-mistake.
+(owned by ajenux@gmail.com). Besides that spreadsheet it opens one more, the
+coach's (script property `AVANCES_SHEET_ID`), and writes only its `Avances`
+tab. It refuses to touch an `Avances` tab whose first row isn't its own
+header, so a tab of his with the same name is safe.
 
 1. Open "Mi semana — datos" → Extensions → Apps Script. Replace `Code.gs`
    with `apps_script/Code.gs` from this repo and save.
@@ -95,9 +99,14 @@ mistake.
    the coach's sheet would write into it. Check the project name in the
    editor ("Mi semana — datos (script)") before deploying, and after
    deploying check that a test note lands in "Mi semana — datos".
-2. Project Settings → Script properties → add `COACH_PIN` = the coach's PIN.
+2. Project Settings → Script properties → add `COACH_PIN` = the coach's PIN,
+   and `AVANCES_SHEET_ID` = `1LUksfUebyzp2ZeplLAFEmOlvwbgBOOlw25JU7ivbUgk`
+   (the coach's sheet; ajenux@gmail.com needs edit access to it). Without
+   it, notes stay only in "Mi semana — datos".
 3. Deploy → New deployment → type **Web app**, Execute as **Me**, Who has
    access **Anyone**. Authorize, and copy the web app URL (`.../exec`).
+   To fill `Avances` with the notes saved so far, pick `syncAvances` in the
+   editor's function list and Run it once.
 4. Tell the build about it and redeploy:
    ```
    gh variable set APPS_SCRIPT_URL --body "https://script.google.com/macros/s/.../exec"
@@ -108,7 +117,13 @@ After changing `Code.gs`, use Deploy → Manage deployments → edit → New
 version, so the URL stays the same.
 
 What to know:
-- The script creates the `Notas` and `Ediciones` tabs on first use.
+- The script creates the `Notas` and `Ediciones` tabs on first use, and
+  `Avances` in the coach's sheet.
+- `Avances` has one row per note line: Mes, Semana, Dia, Persona,
+  Ejercicio, Valor, Actualizado (`Deadlift: 130` → `Deadlift` | `130`; a
+  line without `:` goes whole into Valor). It is rebuilt from `Notas` on
+  every save, so editing it by hand is pointless — changes there are
+  overwritten. If writing it fails, the note is still saved in `Notas`.
 - Emptying a note deletes its row; edits are only appended (history).
 - Notes need no PIN: anyone with the link can write them. Day edits need
   the PIN.
@@ -119,7 +134,7 @@ What to know:
 |---|---|
 | `tools/sheet_to_json.py` | Sheet → `workouts.json` (Python, Google Sheets API v4) |
 | `mobile/lib/main.dart`, `mobile/lib/week/` | The viewer (Flutter web) |
-| `apps_script/Code.gs` | Notes + coach edits (Google Apps Script, bound to "Mi semana — datos") |
+| `apps_script/Code.gs` | Notes + coach edits (Google Apps Script, bound to "Mi semana — datos"; mirrors notes to the coach's `Avances` tab) |
 | `.github/workflows/deploy-web.yml` | Build + deploy to GitHub Pages |
 
 ## Setup

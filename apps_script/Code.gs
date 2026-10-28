@@ -1,23 +1,24 @@
 /**
- * @OnlyCurrentDoc Limits the OAuth scope to this spreadsheet only.
- */
-
-/**
  * Write side of the week viewer. Bound to our own spreadsheet
- * ("Mi semana — datos"), never to the coach's training sheet: that one is
- * only ever read, by the daily build. With @OnlyCurrentDoc this script can't
- * even open another spreadsheet.
+ * ("Mi semana — datos"). The coach's training sheet is touched in exactly
+ * one place: the "Avances" tab, which this script creates and owns (see
+ * syncAvances_). Nothing else in his sheet is ever written.
  *
  * Install: in the datos spreadsheet, Extensions > Apps Script, paste this
- * file, set the script property COACH_PIN, then Deploy > New deployment >
- * Web app (Execute as: Me, Who has access: Anyone). See README.
+ * file, set the script properties COACH_PIN and (optionally)
+ * AVANCES_SHEET_ID, then Deploy > New deployment > Web app (Execute as: Me,
+ * Who has access: Anyone). See README.
  *
  * It stores:
  *   - weight notes per day and person, in the "Notas" tab;
  *   - coach edits of a day, in the "Ediciones" tab. The page shows an edit
  *     on top of the sheet's content while that day is still as it was when
  *     the edit was made ("Base"); once the coach changes the day in his
- *     sheet, his version wins again.
+ *     sheet, his version wins again;
+ *   - a copy of every note, one row per exercise line, in the "Avances" tab
+ *     of the spreadsheet AVANCES_SHEET_ID (the coach's), so he can follow
+ *     our progress. "Notas" stays the source; "Avances" is rebuilt from it
+ *     after each save, so a deleted or edited note is reflected there too.
  *
  * GET  ?action=data                        -> {notes: [...], edits: [...]}
  * POST {action:"checkPin", pin}             -> {ok}
@@ -30,6 +31,8 @@ var NOTES_TAB = 'Notas';
 var EDITS_TAB = 'Ediciones';
 var NOTES_HEADER = ['Mes', 'Semana', 'Dia', 'Persona', 'Nota', 'Actualizado'];
 var EDITS_HEADER = ['Mes', 'Semana', 'Dia', 'Estructura', 'Fuerza', 'WOD', 'Base', 'Actualizado'];
+var AVANCES_TAB = 'Avances';
+var AVANCES_HEADER = ['Mes', 'Semana', 'Dia', 'Persona', 'Ejercicio', 'Valor', 'Actualizado'];
 var PEOPLE = ['Ale', 'Fabita'];
 var MAX_TEXT = 2000;
 
@@ -97,7 +100,14 @@ function saveNote_(req) {
     } else {
       sheet.appendRow(values);
     }
-    return { ok: true, updated: now };
+    // The note is already saved; a failure here must not lose it.
+    var out = { ok: true, updated: now };
+    try {
+      syncAvances_();
+    } catch (err) {
+      out.avancesError = String(err && err.message || err);
+    }
+    return out;
   } finally {
     lock.releaseLock();
   }
@@ -111,6 +121,49 @@ function readNotes_() {
       .map(function (r) {
         return { tab: r[0], week: r[1], day: Number(r[2]), person: r[3], text: r[4], updated: r[5] };
       });
+}
+
+// ---- avances (coach's sheet) ----------------------------------------------
+
+/**
+ * Rewrites the "Avances" tab of the coach's spreadsheet from "Notas": one row
+ * per note line, "Deadlift: 130" split into Ejercicio / Valor. A line without
+ * ":" goes whole into Valor, so nothing is dropped. Only that tab is touched,
+ * and only if it is new or still starts with our header — a tab of his that
+ * happens to share the name is left alone. Without AVANCES_SHEET_ID it does
+ * nothing. Can also be run by hand from the editor to fill it the first time.
+ */
+function syncAvances_() {
+  var id = PropertiesService.getScriptProperties().getProperty('AVANCES_SHEET_ID');
+  if (!id) return;
+  var ss = SpreadsheetApp.openById(id);
+  var sheet = ss.getSheetByName(AVANCES_TAB);
+  if (!sheet) {
+    sheet = ss.insertSheet(AVANCES_TAB);
+  } else if (sheet.getLastRow() > 0) {
+    var head = sheet.getRange(1, 1, 1, AVANCES_HEADER.length).getDisplayValues()[0];
+    if (head.join('|') !== AVANCES_HEADER.join('|')) {
+      throw new Error('la pestaña ' + AVANCES_TAB + ' no es nuestra; no se toca');
+    }
+  }
+
+  var rows = [AVANCES_HEADER];
+  readNotes_().forEach(function (n) {
+    lines_(n.text).forEach(function (line) {
+      var i = line.indexOf(':');
+      var exercise = i > 0 ? line.slice(0, i).trim() : '';
+      var value = i > 0 ? line.slice(i + 1).trim() : line;
+      rows.push([n.tab, n.week, n.day, n.person, asText_(exercise), asText_(value), n.updated]);
+    });
+  });
+
+  sheet.clearContents();
+  sheet.getRange(1, 1, rows.length, AVANCES_HEADER.length).setValues(rows);
+  sheet.setFrozenRows(1);
+}
+
+function syncAvances() {
+  syncAvances_();
 }
 
 // ---- coach edits -----------------------------------------------------------

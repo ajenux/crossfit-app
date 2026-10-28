@@ -90,9 +90,8 @@ What runs through all of it:
    what happens with the current viewer and `~/crossfit_flutter`. Open
    question 1 below; it blocks the rest.
 2. **Process pieces that need the user's approval** (see "Debt and risks"):
-   the `COACH_PIN` secret (the user adds it), archiving the old
-   `crossfit-app-e2e` repo, branch protection on `master` requiring the
-   check, enabling the pre-push hook on each machine.
+   the `COACH_PIN` secret (the user adds it), and enabling the pre-push
+   hook on each machine (optional now: GitHub already refuses direct pushes).
 3. **Design the core model** — athletes, coaches, plans, phases, exercises,
    notes, coach replies — as domain types with pure rules and their tests.
 4. **The sheet adapter** — reads the shared plan sheet into the core model,
@@ -175,10 +174,10 @@ an Apps Script web app with one link per athlete).
 | Item | Status |
 | --- | --- |
 | **No unit tests in the repo** | The viewer was built without them; its rules (weight split, exercise naming, week dates) sit as private functions in `mobile/lib/week/week_app.dart`. The rule applies from now on; whether the viewer's rules get tests depends on how much of it survives into the new app. |
-| **Branch protection on `master`** | Pending the user's approval. The repo is public, so GitHub's free plan allows requiring the `check` workflow before merging — stronger than FL1's merge script, which exists only because FL1's repo is private. |
+| **Branch protection on `master`** | On since 2026-10-28: `check` and `e2e` must pass to merge, the rule applies to admins too, and direct pushes, force pushes and deleting the branch are refused. No review is required (one developer). Free because the repo is public — stronger than FL1's merge script, which exists only because FL1's repo is private. |
 | **Old branches** | Closed on 2026-10-28: `develop` and the merged change branches deleted; `macbook-works` held one unique commit (a Flutter frontend for the deleted Java backend, 2026-04-10), kept as the tag `archive/macbook-works` before deleting the branch. Only `master` remains. |
 | **Service account write access** | As of 2026-09-29 (Drive permissions on the sheet): the user's Google account is an editor; the service account and Fabita's account are readers. Writing notes to the sheet needs either the coach to make the service account an editor, or the writes to run as the user's account. To be decided when the sheet adapter is built. |
-| **The old `crossfit-app-e2e` repo** | To be archived (read-only, reversible) once this move is merged; deleted later if nothing is missed. |
+| **The old `crossfit-app-e2e` repo** | Archived on 2026-10-28 (read-only, reversible); to be deleted later if nothing is missed. |
 | **`COACH_PIN` secret** | The functional tests in CI skip the coach part until the user adds the `COACH_PIN` repository secret. |
 | **Viewer leftovers** | `apps_script/Code.gs` and "Mi semana — datos" (notes, coach edits with PIN) serve the viewer only; they go away with it. |
 

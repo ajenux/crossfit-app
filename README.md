@@ -166,8 +166,9 @@ The cron run every morning picks up whatever the coach added to the sheet.
 
 - `master` — what is deployed. Nothing is pushed to it directly: one branch
   per change, cut from `master`, a pull request with the `check` workflow
-  green, and a merge commit. `.githooks/pre-push` blocks direct pushes
-  (`git config core.hooksPath .githooks`).
+  green, and a merge commit. Branch protection requires the `check` and
+  `e2e` jobs and refuses direct pushes; `.githooks/pre-push` refuses them
+  locally first (`git config core.hooksPath .githooks`).
 
 The rules for working on the project are in `CLAUDE.md`, the plan in
 `PLAN.md`, and how it's tested in `TESTING.md`.

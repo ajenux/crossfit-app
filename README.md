@@ -169,6 +169,9 @@ re-running the failed one: a re-run finds the first attempt's artifact
 next to the new one and refuses to deploy ("Multiple artifacts named
 github-pages").
 
+Both workflows (`check.yml` and `deploy-web.yml`) install Flutter 3.47.8,
+pinned on purpose: upgrading is its own pull request (see `PLAN.md`).
+
 ## Branching
 
 - `master` — what is deployed. Nothing is pushed to it directly: one branch

@@ -135,6 +135,7 @@ an Apps Script web app with one link per athlete).
 
 | Topic | Decision | Why | Ruled out |
 | --- | --- | --- | --- |
+| Flutter version pinned (2026-11-24) | `check.yml` and `deploy-web.yml` install Flutter 3.47.8, the last version that passed `check` (2026-10-28), instead of whatever is latest on `stable` | Flutter 3.50.1 deprecated `package:flutter/material.dart`, and `flutter analyze` failed every pull request on an info nobody wrote; the deploy builds with the same version as the check, so a Flutter release can't break the live site unseen. Upgrading is a deliberate change of its own | Migrating to `material_ui` now (a new dependency and app code changed to unblock a deploy fix; it stays as debt); `flutter analyze --no-fatal-infos` (hides every deprecation from then on) |
 | Source of the plans | The coach's Google Sheet, for now | It's how he works and he's comfortable with it; he'd move only to something simpler that adds value | Asking him to change tools first |
 | Architecture | A clean core model plus adapters at the edges; the sheet's layout is not the data model | When the coach leaves the sheet, only the adapter changes | Mirroring the sheet's layout in the app |
 | Athlete notes | They end up in the coach's sheet, where he reads them before writing the next week | He has to see them without changing how he works | Keeping them only in our own store |
@@ -179,6 +180,7 @@ an Apps Script web app with one link per athlete).
 | **Service account write access** | As of 2026-09-29 (Drive permissions on the sheet): the user's Google account is an editor; the service account and Fabita's account are readers. Writing notes to the sheet needs either the coach to make the service account an editor, or the writes to run as the user's account. To be decided when the sheet adapter is built. |
 | **The old `crossfit-app-e2e` repo** | Archived on 2026-10-28 (read-only, reversible); to be deleted later if nothing is missed. |
 | **`COACH_PIN` secret** | The functional tests in CI skip the coach part until the user adds the `COACH_PIN` repository secret. |
+| **Flutter pinned at 3.47.8** | Since 2026-11-24 (see "Decisions made"). Moving to a newer Flutter means replacing `package:flutter/material.dart` with `material_ui` (2 imports today: `mobile/lib/main.dart`, `mobile/lib/week/week_app.dart`) and bumping the version in both workflows, in one pull request. |
 | **Viewer leftovers** | `apps_script/Code.gs` and "Mi semana — datos" (notes, coach edits with PIN) serve the viewer only; they go away with it. |
 
 ---

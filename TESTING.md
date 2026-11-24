@@ -16,6 +16,10 @@ cd mobile && flutter test         # unit (once mobile/test/ exists)
 cd e2e && npx playwright test     # functional, against the published page; see e2e/README.md
 ```
 
+CI runs these with Flutter 3.47.8, pinned in the workflows. A local
+`flutter analyze` on another version can report what CI doesn't, or the
+other way round; CI's result is the one that counts.
+
 **Functional tests run against the real thing**: they read the real sheet and
 write only to a sandbox tab of "Mi semana — datos", with the service
 account's key from a gitignored file locally and from the repository's

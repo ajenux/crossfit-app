@@ -202,7 +202,8 @@ because it's what runs today.
       Fabita = lighter, by value
 - [x] Always fresh: cache-busting fetch, built with `--pwa-strategy=none`
 - [x] GitHub Action: builds and deploys on push to `master`, daily at
-      05:00 UTC, or manually
+      05:00 UTC, or manually; build and deploy are separate jobs since
+      2026-11-24
 - [x] Weight notes per person and day, shared across devices, with the day's
       exercises as ready-made rows
 - [x] Coach profile (PIN) edits any day and both notes, as an overlay shown
@@ -230,4 +231,5 @@ redefined app.
 | Notes and coach edits through one Apps Script (2026-09-29) — **superseded** | Shared across devices with no server of our own |
 | All writes go to "Mi semana — datos", never the coach's sheet — **superseded** for the shared plan sheet, which the coach opened for writing | His sheet was his |
 | Coach edits stored as overlays with the day's original ("Base") | His sheet stayed untouched, and his later change wins |
+| Deploy workflow split into `build` and `deploy` jobs (2026-11-24) | With both in one job, `deploy-pages` asked for the artifact a fraction of a second after the upload and sometimes got none ("No artifacts named github-pages"): once on 2026-11-19, and on every attempt on 2026-11-24. Two jobs is GitHub's own Pages layout. Ruled out: a `sleep` before the deploy (hides the race, keeps it), a retry loop around the action (more code for the same effect) |
 | Notes as plain text, one `exercise: value` line | Readable straight in the datos tab |

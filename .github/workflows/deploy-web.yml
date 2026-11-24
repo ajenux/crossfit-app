@@ -19,12 +19,14 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
+# Build and deploy are separate jobs, as in GitHub's Pages starter workflow.
+# In one job, deploy-pages ran a fraction of a second after the upload and
+# sometimes found no artifact yet ("No artifacts named github-pages"), which
+# failed every attempt on 2026-11-24. A re-run of a run whose upload already
+# succeeded also fails: it finds two artifacts. Start a fresh run instead.
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
 
     steps:
       - name: Checkout code
@@ -71,6 +73,14 @@ jobs:
         with:
           path: mobile/build/web
 
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
       - name: Deploy to GitHub Pages
         id: deploy
         uses: actions/deploy-pages@v4

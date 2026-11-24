@@ -162,6 +162,9 @@ gh workflow run deploy-web.yml --ref master
 
 The cron run every morning picks up whatever the coach added to the sheet.
 
+Both workflows (`check.yml` and `deploy-web.yml`) install Flutter 3.47.8,
+pinned on purpose: upgrading is its own pull request (see `PLAN.md`).
+
 ## Branching
 
 - `master` — what is deployed. Nothing is pushed to it directly: one branch

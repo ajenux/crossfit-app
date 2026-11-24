@@ -120,7 +120,7 @@ What to know:
 | `tools/sheet_to_json.py` | Sheet → `workouts.json` (Python, Google Sheets API v4) |
 | `mobile/lib/main.dart`, `mobile/lib/week/` | The viewer (Flutter web) |
 | `apps_script/Code.gs` | Notes + coach edits (Google Apps Script, bound to "Mi semana — datos") |
-| `.github/workflows/deploy-web.yml` | Build + deploy to GitHub Pages |
+| `.github/workflows/deploy-web.yml` | Build + deploy to GitHub Pages, as two jobs |
 
 ## Setup
 
@@ -161,6 +161,13 @@ gh workflow run deploy-web.yml --ref master
 ```
 
 The cron run every morning picks up whatever the coach added to the sheet.
+
+The workflow has two jobs: `build` reads the sheet, builds the page and
+uploads the Pages artifact; `deploy` publishes it once `build` is done.
+If `deploy` fails, start a fresh run with the command above instead of
+re-running the failed one: a re-run finds the first attempt's artifact
+next to the new one and refuses to deploy ("Multiple artifacts named
+github-pages").
 
 Both workflows (`check.yml` and `deploy-web.yml`) install Flutter 3.47.8,
 pinned on purpose: upgrading is its own pull request (see `PLAN.md`).
